@@ -1,0 +1,49 @@
+name: release
+
+# Runs only when a version tag like v1.0.0 is pushed.
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Check the tag matches the project version
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          csproj=$(grep -oP '(?<=<Version>)[^<]+' SecurityToolkit/SecurityToolkit.csproj | head -1)
+          assembly=$(grep -oP '(?<=AssemblyVersion\(")[^"]+' SecurityToolkit/Properties/AssemblyInfo.cs | head -1)
+          file=$(grep -oP '(?<=AssemblyFileVersion\(")[^"]+' SecurityToolkit/Properties/AssemblyInfo.cs | head -1)
+          echo "tag=$tag csproj=$csproj assembly=$assembly file=$file"
+          if [ "$tag" != "$csproj" ] || [ "$tag.0" != "$assembly" ] || [ "$tag.0" != "$file" ]; then
+            echo "::error::Tag v$tag must equal <Version> in the csproj ($csproj) and AssemblyVersion/AssemblyFileVersion ($assembly / $file) with a trailing .0"
+            exit 1
+          fi
+
+      - name: Test
+        run: dotnet test SecurityToolkit.Tests/SecurityToolkit.Tests.csproj
+
+      - name: Pack
+        run: dotnet pack SecurityToolkit/SecurityToolkit.csproj -c Release -o nupkg
+
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" nupkg/*.nupkg SecurityToolkit/bin/Release/SecurityToolkit.dll
+          --title "$GITHUB_REF_NAME" --generate-notes
+
+      # nuget.org publishing (Trusted Publishing) is intentionally absent until the project goes public (backlog P-02).

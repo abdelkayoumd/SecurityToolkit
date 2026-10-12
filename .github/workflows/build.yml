@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build
+        run: dotnet build SecurityToolkit/SecurityToolkit.csproj -c Release
+
+      - name: Test
+        run: dotnet test SecurityToolkit.Tests/SecurityToolkit.Tests.csproj
+
+      - name: Pack
+        run: dotnet pack SecurityToolkit/SecurityToolkit.csproj -c Release --no-build -o nupkg
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: nupkg/*.nupkg
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: SecurityToolkit
+          path: |
+            SecurityToolkit/bin/Release/SecurityToolkit.dll
+            SecurityToolkit/bin/Release/SecurityToolkit.pdb

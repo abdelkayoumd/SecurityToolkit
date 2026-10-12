@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>SecurityToolkit</RootNamespace>
+    <AssemblyName>SecurityToolkit</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Deterministic>true</Deterministic>
+    <Platforms>AnyCPU</Platforms>
+  </PropertyGroup>
+
+  <!--
+    Packaging for the XrmToolBox Tool Library uses a hand-written nuspec (the store requires a
+    dependency on the host app "XrmToolBox", which only a nuspec can declare). The package Version
+    must equal the assembly version in Properties/AssemblyInfo.cs (1.0.0 == 1.0.0.0), or users get
+    false "update available" prompts.
+  -->
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <NuspecFile>SecurityToolkit.nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
+    <NuspecProperties>version=$(Version);configuration=$(Configuration)</NuspecProperties>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.ComponentModel.Composition" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="XrmToolBoxPackage" Version="1.2025.10.74" />
+    <PackageReference Include="MscrmTools.Xrm.Connection" Version="1.2025.9.64" />
+  </ItemGroup>
+
+  <!--
+    Deploys the built plugin straight into the local XrmToolBox install after every build,
+    so relaunching XrmToolBox (or hitting F5 with the debug launch settings in
+    SecurityToolkit.csproj.user) always picks up the latest code.
+  -->
+  <Target Name="DeployToXrmToolBox" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT' AND '$(APPDATA)' != ''">
+    <PropertyGroup>
+      <XrmToolBoxPluginsDir>$(APPDATA)\MscrmTools\XrmToolBox\Plugins\</XrmToolBoxPluginsDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <XrmToolBoxDeployFiles Include="$(TargetDir)$(TargetName).dll" />
+      <XrmToolBoxDeployFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    </ItemGroup>
+    <MakeDir Directories="$(XrmToolBoxPluginsDir)" Condition="!Exists('$(XrmToolBoxPluginsDir)')" />
+    <!--
+      Retries="1" plus ContinueOnError so that having XrmToolBox open (which locks the DLL)
+      turns into a warning telling you to restart it, instead of failing the whole build.
+    -->
+    <Copy SourceFiles="@(XrmToolBoxDeployFiles)" DestinationFolder="$(XrmToolBoxPluginsDir)" SkipUnchangedFiles="false"
+          Retries="1" RetryDelayMilliseconds="300" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+</Project>

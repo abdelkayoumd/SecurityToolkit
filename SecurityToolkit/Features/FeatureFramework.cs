@@ -1,0 +1,88 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Windows.Forms;
+using SecurityToolkit.Services;
+using SecurityToolkit.UI;
+
+namespace SecurityToolkit.Features
+{
+    /// <summary>What a feature view may ask of the shell that hosts it.</summary>
+    internal interface IFeatureHost
+    {
+        /// <summary>Null until XrmToolBox has a connection.</summary>
+        SecurityService Security { get; }
+
+        /// <summary>Runs <paramref name="work"/> on a background thread behind the busy overlay, then <paramref name="done"/> on the UI thread. Errors are shown to the user.</summary>
+        void RunAsync<T>(string message, Func<SecurityService, T> work, Action<T> done);
+
+        /// <summary>Makes sure there is a connection (prompting for one if needed), then runs <paramref name="action"/>.</summary>
+        void EnsureConnection(Action action);
+
+        void ShowMessage(BannerKind kind, string message);
+    }
+
+    /// <summary>A section of the toolkit, shown as one item of the left navigation rail.</summary>
+    internal interface IFeature
+    {
+        string Id { get; }
+        string Title { get; }
+        string Glyph { get; }
+
+        /// <summary>Position in the rail; lower comes first.</summary>
+        int Order { get; }
+
+        FeatureView CreateView(IFeatureHost host);
+    }
+
+    /// <summary>Base of every feature screen. Created lazily the first time its rail item is opened.</summary>
+    internal abstract class FeatureView : UserControl
+    {
+        protected FeatureView(IFeatureHost host)
+        {
+            Host = host;
+            Dock = DockStyle.Fill;
+            BackColor = Theme.PageBackground;
+            Font = Theme.FontRegular;
+        }
+
+        protected IFeatureHost Host { get; }
+
+        /// <summary>The connection changed (or was established); cached data is stale.</summary>
+        public virtual void OnConnectionChanged()
+        {
+        }
+
+        /// <summary>The view was brought to the front.</summary>
+        public virtual void OnActivated()
+        {
+        }
+    }
+
+    /// <summary>
+    /// The list of features. Adding a feature is one class implementing <see cref="IFeature"/> plus one line here;
+    /// removing one is deleting that line.
+    /// </summary>
+    internal static class FeatureRegistry
+    {
+        public static IReadOnlyList<IFeature> CreateAll()
+        {
+            return Order(new IFeature[]
+            {
+                new HomeFeature(),
+            });
+        }
+
+        internal static IReadOnlyList<IFeature> Order(IEnumerable<IFeature> features)
+        {
+            var list = features.OrderBy(f => f.Order).ThenBy(f => f.Title, StringComparer.OrdinalIgnoreCase).ToList();
+            var duplicate = list.GroupBy(f => f.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (duplicate != null)
+            {
+                throw new InvalidOperationException($"Two features share the id '{duplicate.Key}'.");
+            }
+
+            return list;
+        }
+    }
+}
