@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using SecurityToolkit.UI;
@@ -42,20 +43,24 @@ namespace SecurityToolkit.Features
                     AutoSize = true,
                     Location = new Point(26, 64)
                 };
-                var refresh = new CommandButton { Glyph = Theme.GlyphRefresh, Text = "Load security data", Strong = true, Location = new Point(18, 100) };
-                refresh.Click += (s, e) => Host.EnsureConnection(LoadCounts);
                 _summary = new Label
                 {
                     Text = "Not loaded yet.",
                     ForeColor = Theme.TextPrimary,
                     AutoSize = true,
-                    Location = new Point(26, 152)
+                    Location = new Point(26, 100)
                 };
 
                 Controls.Add(title);
                 Controls.Add(intro);
-                Controls.Add(refresh);
                 Controls.Add(_summary);
+            }
+
+            protected override IEnumerable<Control> CreateCommands()
+            {
+                var load = new CommandButton { Glyph = Theme.GlyphRefresh, Text = "Load security data", Strong = true };
+                load.Click += (s, e) => Host.EnsureConnection(LoadCounts);
+                yield return load;
             }
 
             public override void OnConnectionChanged()

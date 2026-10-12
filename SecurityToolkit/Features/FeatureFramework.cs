@@ -46,7 +46,22 @@ namespace SecurityToolkit.Features
             Font = Theme.FontRegular;
         }
 
+        private IReadOnlyList<Control> _commands;
+
         protected IFeatureHost Host { get; }
+
+        /// <summary>The buttons this feature puts on the shell's command bar (built once, on first use).</summary>
+        public IReadOnlyList<Control> Commands => _commands ?? (_commands = CreateCommands().ToList());
+
+        protected virtual IEnumerable<Control> CreateCommands()
+        {
+            return Enumerable.Empty<Control>();
+        }
+
+        protected static Control CommandSeparator()
+        {
+            return new Panel { Width = 1, Height = 20, BackColor = Theme.Border, Margin = new Padding(4, 10, 4, 10) };
+        }
 
         /// <summary>The connection changed (or was established); cached data is stale.</summary>
         public virtual void OnConnectionChanged()

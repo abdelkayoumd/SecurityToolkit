@@ -20,6 +20,7 @@ namespace SecurityToolkit.UI
 
         private NavRail _rail;
         private Panel _content;
+        private FlowLayoutPanel _commandBar;
         private Banner _banner;
         private Label _lblConnection;
         private FeatureView _current;
@@ -64,12 +65,35 @@ namespace SecurityToolkit.UI
             Controls.Add(_content);
             Controls.Add(_banner);
             Controls.Add(_rail);
+            Controls.Add(BuildCommandBar());
             Controls.Add(BuildHeader());
 
             if (_features.Count > 0)
             {
                 _rail.Select(_features[0].Id);
             }
+        }
+
+        private Control BuildCommandBar()
+        {
+            _commandBar = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                MinimumSize = new Size(0, 41),
+                WrapContents = true,
+                BackColor = Theme.PanelBackground,
+                Margin = new Padding(0),
+                Padding = new Padding(6, 0, 6, 0)
+            };
+            _commandBar.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Theme.Border))
+                {
+                    e.Graphics.DrawLine(pen, 0, _commandBar.Height - 1, _commandBar.Width, _commandBar.Height - 1);
+                }
+            };
+            return _commandBar;
         }
 
         private Control BuildHeader()
@@ -128,6 +152,15 @@ namespace SecurityToolkit.UI
                 _views[id] = view;
                 _content.Controls.Add(view);
             }
+
+            _commandBar.SuspendLayout();
+            _commandBar.Controls.Clear();
+            foreach (var command in view.Commands)
+            {
+                _commandBar.Controls.Add(command);
+            }
+
+            _commandBar.ResumeLayout();
 
             _current?.SendToBack();
             _current = view;
