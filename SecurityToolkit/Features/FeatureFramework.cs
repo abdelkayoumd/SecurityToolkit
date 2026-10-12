@@ -85,6 +85,11 @@ namespace SecurityToolkit.Features
             return Order(new IFeature[]
             {
                 new HomeFeature(),
+                new UsersAndTeamsFeature(),
+                new TeamMembersFeature(),
+                new UsersByRoleFeature(),
+                new UsersByBusinessUnitFeature(),
+                new PrivilegeFinderFeature(),
             });
         }
 
