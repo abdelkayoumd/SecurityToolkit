@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Messages;
+using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using SecurityToolkit.Models;
 
@@ -20,6 +22,8 @@ namespace SecurityToolkit.Services
         private List<RoleInfo> _roles;
         private List<TeamInfo> _teams;
         private List<BusinessUnitInfo> _businessUnits;
+        private SecurityGraph _graph;
+        private IReadOnlyList<TableInfo> _tables;
 
         public SecurityService(IOrganizationService service)
         {
@@ -34,6 +38,95 @@ namespace SecurityToolkit.Services
             _roles = null;
             _teams = null;
             _businessUnits = null;
+            _graph = null;
+            _tables = null;
+        }
+
+        /// <summary>Everything the read-only features need, loaded once (paged) and cached until <see cref="Invalidate"/>.</summary>
+        public SecurityGraph GetGraph()
+        {
+            return _graph ?? (_graph = new SecurityGraph(
+                GetUsers(), GetRoles(), GetTeams(), GetBusinessUnits(),
+                Fetch(new QueryExpression("teammembership") { ColumnSet = new ColumnSet("systemuserid", "teamid") },
+                    e => new UserTeamLink { UserId = e.GetAttributeValue<Guid>("systemuserid"), TeamId = e.GetAttributeValue<Guid>("teamid") }),
+                Fetch(new QueryExpression("systemuserroles") { ColumnSet = new ColumnSet("systemuserid", "roleid") },
+                    e => new UserRoleLink { UserId = e.GetAttributeValue<Guid>("systemuserid"), RoleId = e.GetAttributeValue<Guid>("roleid") }),
+                Fetch(new QueryExpression("teamroles") { ColumnSet = new ColumnSet("teamid", "roleid") },
+                    e => new TeamRoleLink { TeamId = e.GetAttributeValue<Guid>("teamid"), RoleId = e.GetAttributeValue<Guid>("roleid") })));
+        }
+
+        /// <summary>The tables a privilege can be about (no relationship tables), by display name.</summary>
+        public IReadOnlyList<TableInfo> GetTables()
+        {
+            if (_tables != null)
+            {
+                return _tables;
+            }
+
+            var response = (RetrieveAllEntitiesResponse)_service.Execute(
+                new RetrieveAllEntitiesRequest { EntityFilters = EntityFilters.Entity, RetrieveAsIfPublished = false });
+            return _tables = response.EntityMetadata
+                .Where(m => m.IsIntersect != true && m.IsPrivate != true)
+                .Select(m => new TableInfo
+                {
+                    LogicalName = m.LogicalName,
+                    DisplayName = m.DisplayName?.UserLocalizedLabel?.Label ?? m.LogicalName
+                })
+                .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase)
+                .ToList();
+        }
+
+        /// <summary>
+        /// Every role (in every business unit) that grants <paramref name="kind"/> on <paramref name="table"/> at
+        /// <paramref name="minimum"/> depth or wider.
+        /// </summary>
+        public IReadOnlyList<RolePrivilegeRow> FindRolesWithPrivilege(string table, PrivilegeKind kind, PrivilegeDepth minimum)
+        {
+            var privilegeQuery = new QueryExpression("privilege")
+            {
+                ColumnSet = new ColumnSet("privilegeid"),
+                Criteria = { Conditions = { new ConditionExpression("accessright", ConditionOperator.Equal, Privileges.AccessRight(kind)) } },
+                LinkEntities =
+                {
+                    new LinkEntity("privilege", "privilegeobjecttypecodes", "privilegeid", "privilegeid", JoinOperator.Inner)
+                    {
+                        LinkCriteria = { Conditions = { new ConditionExpression("objecttypecode", ConditionOperator.Equal, table) } }
+                    }
+                }
+            };
+            var privilegeIds = RetrieveAll(privilegeQuery).Select(e => e.Id).Distinct().Cast<object>().ToArray();
+            if (privilegeIds.Length == 0)
+            {
+                return new List<RolePrivilegeRow>();
+            }
+
+            var grantQuery = new QueryExpression("roleprivileges")
+            {
+                ColumnSet = new ColumnSet("roleid", "privilegedepthmask"),
+                Criteria = { Conditions = { new ConditionExpression("privilegeid", ConditionOperator.In, privilegeIds) } }
+            };
+
+            var roles = GetRoles().ToDictionary(r => r.Id);
+            var rows = new List<RolePrivilegeRow>();
+            foreach (var grant in RetrieveAll(grantQuery))
+            {
+                if (!roles.TryGetValue(grant.GetAttributeValue<Guid>("roleid"), out var role))
+                {
+                    continue;
+                }
+
+                var depth = Privileges.DepthFromMask(grant.GetAttributeValue<int>("privilegedepthmask"));
+                rows.Add(new RolePrivilegeRow
+                {
+                    Role = role.Name,
+                    BusinessUnit = role.BusinessUnitName,
+                    Depth = Privileges.Label(depth),
+                    DepthLevel = (int)depth
+                });
+            }
+
+            return Privileges.AtLeast(rows, minimum)
+                .OrderBy(r => r.Role, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.BusinessUnit, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         public IReadOnlyList<UserInfo> GetUsers()
