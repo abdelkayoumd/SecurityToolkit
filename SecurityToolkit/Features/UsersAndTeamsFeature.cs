@@ -26,6 +26,7 @@ namespace SecurityToolkit.Features
         private sealed class UsersAndTeamsView : DataView
         {
             private readonly TreeView _tree;
+            private readonly Timer _selectionTimer;
             private CheckBox _chkDisabled;
 
             public UsersAndTeamsView(IFeatureHost host) : base(host)
@@ -53,13 +54,39 @@ namespace SecurityToolkit.Features
                 Controls.Add(layout);
                 Controls.SetChildIndex(layout, 0);
 
-                InfoLabel.Text = "Load the users, select some, then show their teams and roles.";
+                InfoLabel.Text = "Load the users, then select some to see their teams and roles.";
+
+                // Selecting rows shows their teams. The short delay lets a drag or Shift-click settle first.
+                _selectionTimer = new Timer { Interval = 200 };
+                _selectionTimer.Tick += (s, e) =>
+                {
+                    _selectionTimer.Stop();
+                    if (Graph != null)
+                    {
+                        ShowTeams(promptWhenNothingSelected: false);
+                    }
+                };
+                Grid.SelectionChanged += (s, e) =>
+                {
+                    _selectionTimer.Stop();
+                    _selectionTimer.Start();
+                };
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    _selectionTimer?.Dispose();
+                }
+
+                base.Dispose(disposing);
             }
 
             protected override IEnumerable<Control> CreateCommands()
             {
                 yield return Command(Theme.GlyphDownload, "Load users", () => WithGraph(OnGraphLoaded), strong: true);
-                yield return Command(Glyphs.Group, "Show teams", () => WithGraph(ShowTeams));
+                yield return Command(Glyphs.Group, "Show teams", () => WithGraph(() => ShowTeams(promptWhenNothingSelected: true)));
                 yield return Command(Theme.GlyphRefresh, "Refresh", () => WithGraph(OnGraphLoaded, refresh: true));
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphExpand, "Expand all", () => _tree.ExpandAll());
@@ -88,14 +115,20 @@ namespace SecurityToolkit.Features
                 var includeDisabled = _chkDisabled != null && _chkDisabled.Checked;
                 var users = Graph.Users.Where(u => includeDisabled || !u.IsDisabled).ToList();
                 Grid.SetData(users, "FullName=Full Name", "DomainName=User Name", "BusinessUnitName=Business Unit", "Status");
-                InfoLabel.Text = $"{users.Count} user(s). Select users (Ctrl/Shift for several), then Show teams.";
+                InfoLabel.Text = $"{users.Count} user(s). Select users (Ctrl/Shift for several) to see their teams and roles.";
             }
 
-            private void ShowTeams()
+            private void ShowTeams(bool promptWhenNothingSelected)
             {
                 var users = Grid.GetSelected<UserInfo>();
                 if (users.Count == 0)
                 {
+                    if (!promptWhenNothingSelected)
+                    {
+                        // Selection was only cleared (by a filter, say): keep showing what was last chosen.
+                        return;
+                    }
+
                     var answer = MessageBox.Show(this, "No user is selected. Show the teams of all listed users?", "Show teams",
                         MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (answer != DialogResult.Yes)
