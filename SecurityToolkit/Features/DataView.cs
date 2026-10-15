@@ -89,7 +89,7 @@ namespace SecurityToolkit.Features
                 ForeColor = Theme.TextPrimary,
                 Margin = new Padding(10, 11, 6, 0)
             };
-            box.CheckedChanged += (s, e) => changed();
+            box.CheckedChanged += (s, e) => changed?.Invoke();
             return box;
         }
 

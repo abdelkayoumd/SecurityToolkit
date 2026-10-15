@@ -161,6 +161,12 @@ namespace SecurityToolkit.UI
             _grid.ClearSelection();
         }
 
+        /// <summary>Redraws the cells after properties of the listed objects changed in place, keeping the selection.</summary>
+        public void RefreshCells()
+        {
+            _grid.Invalidate();
+        }
+
         /// <summary>Sorts as if the user had clicked the title of the column bound to <paramref name="property"/>.</summary>
         public void SortBy(string property, bool ascending = true)
         {

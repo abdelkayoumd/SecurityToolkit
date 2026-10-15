@@ -20,6 +20,9 @@ namespace SecurityToolkit.Features
         void EnsureConnection(Action action);
 
         void ShowMessage(BannerKind kind, string message);
+
+        /// <summary>The dialogs a write operation uses to review, report and offer undo. The shell supplies real windows.</summary>
+        IChangeUi CreateChangeUi(System.Windows.Forms.IWin32Window owner);
     }
 
     /// <summary>A section of the toolkit, shown as one item of the left navigation rail.</summary>
@@ -90,6 +93,10 @@ namespace SecurityToolkit.Features
                 new UsersByRoleFeature(),
                 new UsersByBusinessUnitFeature(),
                 new PrivilegeFinderFeature(),
+                new UserRolesFeature(),
+                new TeamRolesFeature(),
+                new TeamMembershipFeature(),
+                new CloneUserFeature(),
             });
         }
 

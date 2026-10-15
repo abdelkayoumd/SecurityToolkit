@@ -186,6 +186,11 @@ namespace SecurityToolkit.UI
             ExecuteMethod(action);
         }
 
+        IChangeUi IFeatureHost.CreateChangeUi(IWin32Window owner)
+        {
+            return new WinFormsChangeUi(owner);
+        }
+
         void IFeatureHost.ShowMessage(BannerKind kind, string message)
         {
             _banner.ShowMessage(kind, message);

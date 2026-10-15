@@ -15,6 +15,8 @@ namespace SecurityToolkit.Tests
         public void RunAsync<T>(string message, Func<SecurityService, T> work, Action<T> done) { done(work(Security)); }
         public void EnsureConnection(Action action) { action(); }
         public void ShowMessage(BannerKind kind, string message) { }
+        public ScriptedUi Ui = new ScriptedUi();
+        public IChangeUi CreateChangeUi(System.Windows.Forms.IWin32Window owner) { return Ui; }
     }
 
     internal static class OrgFake
@@ -22,7 +24,12 @@ namespace SecurityToolkit.Tests
         /// <summary>A fake organization service that serves the records of <paramref name="org"/> the way Dataverse would.</summary>
         public static FakeOrganizationService For(Org org)
         {
-            var graph = org.Graph;
+            return Serve(org.Graph, org);
+        }
+
+        /// <summary>Serves the security records of any graph. Privilege data is only available for the read-side <see cref="Org"/>.</summary>
+        public static FakeOrganizationService Serve(SecurityGraph graph, Org org = null)
+        {
             var fake = new FakeOrganizationService();
             fake.OnRetrieveMultiple = q =>
             {
@@ -48,7 +55,7 @@ namespace SecurityToolkit.Tests
                             var e = new Entity("role", r.Id)
                             {
                                 ["name"] = r.Name,
-                                ["businessunitid"] = new EntityReference("businessunit", Guid.NewGuid()) { Name = r.BusinessUnitName }
+                                ["businessunitid"] = new EntityReference("businessunit", r.BusinessUnitId ?? Guid.NewGuid()) { Name = r.BusinessUnitName }
                             };
                             if (r.RootRoleId.HasValue)
                             {
@@ -62,7 +69,13 @@ namespace SecurityToolkit.Tests
                     case "team":
                         foreach (var t in graph.Teams)
                         {
-                            result.Entities.Add(new Entity("team", t.Id) { ["name"] = t.Name, ["teamtype"] = new OptionSetValue(t.TeamType) });
+                            var e = new Entity("team", t.Id) { ["name"] = t.Name, ["teamtype"] = new OptionSetValue(t.TeamType), ["isdefault"] = t.IsDefault };
+                            if (t.BusinessUnitId.HasValue)
+                            {
+                                e["businessunitid"] = new EntityReference("businessunit", t.BusinessUnitId.Value) { Name = t.BusinessUnitName };
+                            }
+
+                            result.Entities.Add(e);
                         }
 
                         break;
@@ -109,11 +122,11 @@ namespace SecurityToolkit.Tests
                         }
 
                         break;
-                    case "privilege":
+                    case "privilege" when org != null:
                         // Whatever table and access right is asked for, one privilege exists.
                         result.Entities.Add(new Entity("privilege", Guid.NewGuid()));
                         break;
-                    case "roleprivileges":
+                    case "roleprivileges" when org != null:
                         // Admin reaches the whole organization, Auditor its business unit, Seller only the user's own records.
                         result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = org.Admin.Id, ["privilegedepthmask"] = 8 });
                         result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = org.Auditor.Id, ["privilegedepthmask"] = 2 });
