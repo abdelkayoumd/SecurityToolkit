@@ -258,6 +258,36 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
+        public void Columns_AppearInTheOrderTheCallerListedThem()
+        {
+            OnUiThread((grid, form) =>
+            {
+                // TeamInfo declares Name, BusinessUnitName, TypeName in a different order than listed here.
+                var teams = new List<TeamInfo> { new TeamInfo { Name = "T", BusinessUnitName = "BU", TeamType = 1 } };
+                grid.SetData(teams, "Name=Team", "TypeName=Type", "BusinessUnitName=Business Unit");
+
+                Assert.Equal(new[] { "Team", "Type", "Business Unit" }, grid.GetTable().Key);
+            });
+        }
+
+        [Fact]
+        public void Columns_KeepTheirOrderWhenBoundBeforeTheGridIsShown()
+        {
+            Sta.Run(() =>
+            {
+                var grid = new FilterableGrid();
+                grid.SetData(new List<TeamInfo> { new TeamInfo { Name = "T" } }, "Name=Team", "TypeName=Type", "BusinessUnitName=Business Unit");
+                var form = new Form { Size = new Size(800, 400) };
+                form.Controls.Add(grid);
+                form.Show();
+                Application.DoEvents();
+
+                Assert.Equal(new[] { "Team", "Type", "Business Unit" }, grid.GetTable().Key);
+                form.Dispose();
+            });
+        }
+
+        [Fact]
         public void Binding_BeforeTheGridIsShown_DoesNotBreakTheLaterShow()
         {
             Sta.Run(() =>

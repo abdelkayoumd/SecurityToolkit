@@ -31,6 +31,7 @@ namespace SecurityToolkit.UI
         private Dictionary<string, PropertyInfo> _properties = new Dictionary<string, PropertyInfo>();
         private PropertyInfo[] _stringProperties = new PropertyInfo[0];
         private Dictionary<string, string> _columnMap = new Dictionary<string, string>();
+        private List<string> _columnOrder = new List<string>();
         private string _signature = string.Empty;
         private ToolStripDropDown _popup;
 
@@ -116,6 +117,7 @@ namespace SecurityToolkit.UI
             _properties = typeof(T).GetProperties().ToDictionary(p => p.Name);
             _stringProperties = _properties.Values.Where(p => p.PropertyType == typeof(string)).ToArray();
             _columnMap = columns.Select(c => c.Split(new[] { '=' }, 2)).ToDictionary(p => p[0], p => p.Length > 1 ? p[1] : p[0]);
+            _columnOrder = columns.Select(c => c.Split('=')[0]).ToList();
 
             // A different table shape means the old column filters no longer apply; the same shape keeps them.
             var signature = typeof(T).FullName + "|" + string.Join(",", columns);
@@ -268,6 +270,17 @@ namespace SecurityToolkit.UI
                 else
                 {
                     column.Visible = false;
+                }
+            }
+
+            // Columns appear in the order the caller listed them, not in the order the class declares its properties.
+            var position = 0;
+            foreach (var property in _columnOrder)
+            {
+                var column = _grid.Columns.Cast<DataGridViewColumn>().FirstOrDefault(c => c.DataPropertyName == property && c.Visible);
+                if (column != null)
+                {
+                    column.DisplayIndex = position++;
                 }
             }
 

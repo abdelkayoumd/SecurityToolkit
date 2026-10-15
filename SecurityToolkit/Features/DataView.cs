@@ -35,7 +35,7 @@ namespace SecurityToolkit.Features
         protected Label InfoLabel { get; }
 
         /// <summary>The loaded data, or null until a command has loaded it for the current connection.</summary>
-        protected SecurityGraph Graph { get; private set; }
+        protected SecurityGraph Graph { get; set; }
 
         /// <summary>Called when data (re)loaded; subclasses redraw the grid from <see cref="Graph"/>.</summary>
         protected abstract void OnGraphLoaded();

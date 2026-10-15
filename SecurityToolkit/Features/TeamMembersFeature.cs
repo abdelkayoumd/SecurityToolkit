@@ -7,7 +7,7 @@ using SecurityToolkit.UI;
 
 namespace SecurityToolkit.Features
 {
-    /// <summary>R-02: pick one or more teams and list their members.</summary>
+    /// <summary>R-02: pick one or more teams in the list on the left; their members appear on the right.</summary>
     internal sealed class TeamMembersFeature : IFeature
     {
         public string Id => "team-members";
@@ -20,23 +20,27 @@ namespace SecurityToolkit.Features
             return new TeamMembersView(host);
         }
 
-        private sealed class TeamMembersView : DataView
+        private sealed class TeamMembersView : MasterDetailView
         {
             private IReadOnlyList<Guid> _teamIds = new Guid[0];
             private CheckBox _chkDisabled;
 
-            public TeamMembersView(IFeatureHost host) : base(host)
+            public TeamMembersView(IFeatureHost host) : base(host, "Teams (Ctrl/Shift-click to select several)", "Members")
             {
-                InfoLabel.Text = "Select one or more teams to list their members.";
+                InfoLabel.Text = "Connect to an environment to get started.";
             }
+
+            protected override string PromptText => "Select one or more teams on the left to see their members.";
 
             protected override IEnumerable<Control> CreateCommands()
             {
-                yield return Command(Theme.GlyphSearch, "Select teams", () => WithGraph(PickTeams), strong: true);
-                yield return Command(Theme.GlyphRefresh, "Refresh", () => WithGraph(OnGraphLoaded, refresh: true));
+                yield return Command(Theme.GlyphRefresh, "Refresh", () => WithGraph(OnGraphLoaded, refresh: true), strong: true);
+                yield return CommandSeparator();
+                yield return Command(Theme.GlyphSelectAll, "Select all teams", Master.SelectAll);
+                yield return Command(Theme.GlyphClearSelection, "Clear selection", Master.ClearSelection);
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "TeamMembers.xlsx", "Team members"));
-                _chkDisabled = CommandCheck("Include disabled users", OnGraphLoaded);
+                _chkDisabled = CommandCheck("Include disabled users", ShowMembers);
                 yield return _chkDisabled;
             }
 
@@ -44,23 +48,40 @@ namespace SecurityToolkit.Features
             {
                 _teamIds = new Guid[0];
                 base.Reset();
-                InfoLabel.Text = "Select one or more teams to list their members.";
             }
 
-            private void PickTeams()
+            protected override void OnGraphLoaded()
             {
-                var picked = PickerDialog<TeamInfo>.Pick(this, "Select teams", Graph.Teams, true,
-                    "Name=Team", "TypeName=Type", "BusinessUnitName=Business Unit");
-                if (picked == null)
+                if (Graph == null)
                 {
                     return;
                 }
 
-                _teamIds = picked.Select(t => t.Id).ToList();
-                OnGraphLoaded();
+                Master.SetData(Graph.Teams, "Name=Team", "TypeName=Type", "BusinessUnitName=Business Unit");
+                if (_teamIds.Count == 0)
+                {
+                    InfoLabel.Text = PromptText;
+                }
+                else
+                {
+                    ShowMembers();
+                }
             }
 
-            protected override void OnGraphLoaded()
+            protected override void OnMasterSelectionChanged()
+            {
+                var picked = Master.GetSelected<TeamInfo>();
+                if (picked.Count == 0)
+                {
+                    // Only cleared (by a filter, say): keep showing the last choice.
+                    return;
+                }
+
+                _teamIds = picked.Select(t => t.Id).ToList();
+                ShowMembers();
+            }
+
+            private void ShowMembers()
             {
                 if (Graph == null || _teamIds.Count == 0)
                 {
