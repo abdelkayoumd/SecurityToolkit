@@ -198,9 +198,82 @@ namespace SecurityToolkit.Tests
             MasterDetailHarness.Run(new PrivilegeFinderFeature(), test, connected);
         }
 
+        /// <summary>The privilege (0) and depth (1) dropdowns, which sit inside the sentence above the lists.</summary>
         private static ComboBox Combo(FeatureView view, int index)
         {
-            return view.Commands.OfType<ComboBox>().ElementAt(index);
+            var found = new List<ComboBox>();
+            CollectCombos(view, found);
+            return found.OrderBy(c => c.PointToScreen(Point.Empty).X).ElementAt(index);
+        }
+
+        private static void CollectCombos(Control root, List<ComboBox> found)
+        {
+            foreach (Control child in root.Controls)
+            {
+                if (child is ComboBox box)
+                {
+                    found.Add(box);
+                }
+                else
+                {
+                    CollectCombos(child, found);
+                }
+            }
+        }
+
+        /// <summary>The words of the sentence, joined: labels and the current choice of each dropdown, left to right.</summary>
+        private static string Sentence(FeatureView view)
+        {
+            var panel = (FlowLayoutPanel)Sta.Find(view, c => c is FlowLayoutPanel p && p.Dock == DockStyle.Top && p.Controls.OfType<ComboBox>().Any());
+            return string.Join(" ", panel.Controls.Cast<Control>().Select(c => c is ComboBox b ? "[" + b.Text + "]" : c.Text));
+        }
+
+        [Fact]
+        public void TheDropdownsAreInTheSentence_NotOnTheCommandBar()
+        {
+            Run((view, master, detail, org) =>
+            {
+                Assert.Empty(view.Commands.OfType<ComboBox>());
+                Assert.Equal(2, new Func<int>(() => { var f = new List<ComboBox>(); CollectCombos(view, f); return f.Count; })());
+                Assert.True(Sta.Find(view, c => c is FlowLayoutPanel p && p.Controls.OfType<ComboBox>().Count() == 2).Visible);
+            });
+        }
+
+        [Fact]
+        public void BeforeATableIsPicked_TheSentenceReadsAsAQuestion()
+        {
+            Run((view, master, detail, org) =>
+            {
+                Assert.Equal("Roles that grant [Read] on the selected table(s) at [User] level or wider", Sentence(view));
+            });
+        }
+
+        [Fact]
+        public void AfterPickingATable_TheSentenceStatesTheResult()
+        {
+            Run((view, master, detail, org) =>
+            {
+                MasterDetailHarness.Select<TableInfo>(master, t => t.LogicalName == "account");
+                TeamMembersViewTests.Pump(() => detail.GetVisible<RolePrivilegeRow>().Any());
+
+                Assert.Equal("3 role(s) grant [Read] on 1 table(s) at [User] level or wider", Sentence(view));
+            });
+        }
+
+        [Fact]
+        public void ChangingTheDropdowns_UpdatesTheSentenceAndTheResults()
+        {
+            Run((view, master, detail, org) =>
+            {
+                MasterDetailHarness.Select<TableInfo>(master, t => t.LogicalName == "account");
+                TeamMembersViewTests.Pump(() => detail.GetVisible<RolePrivilegeRow>().Any());
+
+                Combo(view, 0).SelectedIndex = 3; // Delete
+                Combo(view, 1).SelectedIndex = 3; // Organization
+
+                Assert.Equal("1 role(s) grant [Delete] on 1 table(s) at [Organization] level", Sentence(view));
+                Assert.Equal(new[] { "Admin" }, detail.GetVisible<RolePrivilegeRow>().Select(r => r.Role));
+            });
         }
 
         [Fact]

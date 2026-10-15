@@ -1,16 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using SecurityToolkit.Models;
 using SecurityToolkit.Services;
 using SecurityToolkit.UI;
+using Label = System.Windows.Forms.Label;
 
 namespace SecurityToolkit.Features
 {
     /// <summary>
-    /// R-05: pick one or more tables on the left, a privilege and a minimum depth on the command bar; the security
-    /// roles that grant it (at that depth or wider) appear on the right.
+    /// R-05: pick one or more tables on the left; the roles that grant a privilege on them appear on the right.
+    /// The privilege and the minimum depth are chosen inside the sentence above the lists:
+    /// "7 role(s) grant [Delete] on 1 table(s) at [Organization] level".
     /// </summary>
     internal sealed class PrivilegeFinderFeature : IFeature
     {
@@ -34,18 +37,52 @@ namespace SecurityToolkit.Features
 
         private sealed class PrivilegeFinderView : MasterDetailView
         {
+            private readonly FlowLayoutPanel _sentence;
+            private readonly Label _lead;
+            private readonly Label _middle;
+            private readonly Label _tail;
+            private readonly ComboBox _cmbPrivilege;
+            private readonly ComboBox _cmbDepth;
             private IReadOnlyList<TableInfo> _tables;
             private IReadOnlyList<TableInfo> _picked = new TableInfo[0];
-            private ComboBox _cmbPrivilege;
-            private ComboBox _cmbDepth;
 
             public PrivilegeFinderView(IFeatureHost host)
                 : base(host, "Tables (Ctrl/Shift-click to select several)", "Roles that grant the privilege")
             {
+                _lead = SentenceLabel();
+                _middle = SentenceLabel();
+                _tail = SentenceLabel();
+                _cmbPrivilege = Combo(Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>().Select(k => new Choice<PrivilegeKind>(k, Privileges.Label(k))), 110);
+                _cmbDepth = Combo(new[] { PrivilegeDepth.User, PrivilegeDepth.BusinessUnit, PrivilegeDepth.ParentChildBusinessUnits, PrivilegeDepth.Organization }
+                    .Select(d => new Choice<PrivilegeDepth>(d, Privileges.Label(d))), 190);
+
+                _sentence = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Top,
+                    Height = 34,
+                    WrapContents = false,
+                    AutoScroll = false,
+                    Padding = new Padding(10, 0, 0, 0),
+                    BackColor = Theme.PageBackground,
+                    Visible = false
+                };
+                _sentence.Controls.Add(_lead);
+                _sentence.Controls.Add(_cmbPrivilege);
+                _sentence.Controls.Add(_middle);
+                _sentence.Controls.Add(_cmbDepth);
+                _sentence.Controls.Add(_tail);
+
+                // Added last, so it is laid out first and sits above the (then hidden) one-line message.
+                Controls.Add(_sentence);
+
+                _cmbPrivilege.SelectedIndex = 1; // Read
+                _cmbDepth.SelectedIndex = 0;     // User or wider = any access
+                ShowSentence(null);
+
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
-            protected override string PromptText => "Select one or more tables on the left, then a privilege, to see which roles grant it.";
+            protected override string PromptText => "Select one or more tables on the left to see which roles grant the privilege.";
 
             // This feature lists tables, not the security graph, so it has its own notion of "loaded".
             protected override bool IsLoaded => _tables != null;
@@ -63,19 +100,18 @@ namespace SecurityToolkit.Features
             {
                 yield return Command(Theme.GlyphRefresh, "Refresh", ReloadTables, strong: true);
                 yield return CommandSeparator();
-
-                _cmbPrivilege = Combo(Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>().Select(k => new Choice<PrivilegeKind>(k, Privileges.Label(k))), 110);
-                _cmbPrivilege.SelectedIndex = 1; // Read
-                _cmbDepth = Combo(new[] { PrivilegeDepth.User, PrivilegeDepth.BusinessUnit, PrivilegeDepth.ParentChildBusinessUnits, PrivilegeDepth.Organization }
-                    .Select(d => new Choice<PrivilegeDepth>(d, Privileges.Label(d))), 190);
-                _cmbDepth.SelectedIndex = 0; // User or wider = any access
-
-                yield return CommandLabel("Privilege");
-                yield return _cmbPrivilege;
-                yield return CommandLabel("At least");
-                yield return _cmbDepth;
-                yield return CommandSeparator();
                 yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "RolesWithPrivilege.xlsx", "Roles"));
+            }
+
+            private static Label SentenceLabel()
+            {
+                return new Label
+                {
+                    AutoSize = true,
+                    Font = Theme.FontBold,
+                    ForeColor = Theme.TextSecondary,
+                    Margin = new Padding(0, 9, 4, 0)
+                };
             }
 
             private ComboBox Combo<T>(IEnumerable<Choice<T>> items, int width)
@@ -85,18 +121,35 @@ namespace SecurityToolkit.Features
                     DropDownStyle = ComboBoxStyle.DropDownList,
                     Width = width,
                     Font = Theme.FontRegular,
-                    Margin = new Padding(2, 9, 6, 0)
+                    Margin = new Padding(0, 6, 6, 0)
                 };
                 box.Items.AddRange(items.Cast<object>().ToArray());
                 box.SelectedIndexChanged += (s, e) => FindRoles();
                 return box;
             }
 
+            /// <summary>
+            /// Writes the sentence. With <paramref name="roleCount"/> null (nothing searched yet) it reads as a
+            /// question to fill in; otherwise it states the result.
+            /// </summary>
+            private void ShowSentence(int? roleCount)
+            {
+                var depth = SelectedDepth;
+                _lead.Text = roleCount.HasValue ? $"{roleCount.Value} role(s) grant" : "Roles that grant";
+                _middle.Text = _picked.Count == 0 ? "on the selected table(s) at" : $"on {_picked.Count} table(s) at";
+                _tail.Text = depth == PrivilegeDepth.Organization ? "level" : "level or wider";
+            }
+
+            private PrivilegeDepth SelectedDepth => ((Choice<PrivilegeDepth>)_cmbDepth.SelectedItem).Value;
+
             protected override void Reset()
             {
                 _tables = null;
                 _picked = new TableInfo[0];
                 base.Reset();
+                _sentence.Visible = false;
+                InfoLabel.Visible = true;
+                ShowSentence(null);
             }
 
             protected override void OnGraphLoaded()
@@ -116,9 +169,13 @@ namespace SecurityToolkit.Features
             private void FillTables()
             {
                 Master.SetData(_tables, "DisplayName=Table", "LogicalName=Logical name");
+
+                // Once there is data, the sentence replaces the one-line message.
+                InfoLabel.Visible = false;
+                _sentence.Visible = true;
                 if (_picked.Count == 0)
                 {
-                    InfoLabel.Text = PromptText;
+                    ShowSentence(null);
                 }
                 else
                 {
@@ -141,14 +198,21 @@ namespace SecurityToolkit.Features
 
             private void FindRoles()
             {
-                if (_picked.Count == 0 || _cmbPrivilege == null || _cmbDepth == null || _cmbPrivilege.SelectedItem == null || _cmbDepth.SelectedItem == null)
+                // The combos exist from the start; they raise this while the view is still being built.
+                if (_cmbPrivilege == null || _cmbDepth == null || _cmbPrivilege.SelectedItem == null || _cmbDepth.SelectedItem == null)
+                {
+                    return;
+                }
+
+                ShowSentence(null);
+                if (_picked.Count == 0 || !IsLoaded)
                 {
                     return;
                 }
 
                 var tables = _picked;
                 var kind = ((Choice<PrivilegeKind>)_cmbPrivilege.SelectedItem).Value;
-                var depth = ((Choice<PrivilegeDepth>)_cmbDepth.SelectedItem).Value;
+                var depth = SelectedDepth;
 
                 Host.RunAsync("Finding roles...", security =>
                 {
@@ -166,8 +230,7 @@ namespace SecurityToolkit.Features
                 }, rows =>
                 {
                     Grid.SetData(rows, "Table", "Role", "BusinessUnit=Business Unit", "Depth");
-                    var wider = depth == PrivilegeDepth.Organization ? string.Empty : " or wider";
-                    InfoLabel.Text = $"{rows.Count} role(s) grant {Privileges.Label(kind)} on {tables.Count} table(s) at {Privileges.Label(depth)} level{wider}";
+                    ShowSentence(rows.Count);
                 });
             }
         }
