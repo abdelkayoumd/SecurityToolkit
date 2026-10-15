@@ -16,5 +16,7 @@ namespace SecurityToolkit.UI
         public const string AddPerson = "";
         public const string Security = "";
         public const string Clone = "";
+        public const string Business = "";
+        public const string Swap = "";
     }
 }

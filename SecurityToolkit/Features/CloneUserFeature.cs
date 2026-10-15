@@ -17,6 +17,7 @@ namespace SecurityToolkit.Features
         public string Id => "clone-user";
         public string Title => "Clone user profile";
         public string Glyph => Glyphs.Clone;
+        public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 90;
 
         public FeatureView CreateView(IFeatureHost host)

@@ -25,6 +25,19 @@ namespace SecurityToolkit.Features
         IChangeUi CreateChangeUi(System.Windows.Forms.IWin32Window owner);
     }
 
+    /// <summary>The heading a feature sits under in the navigation rail.</summary>
+    internal enum FeatureGroup
+    {
+        /// <summary>The landing page, above any heading.</summary>
+        Start,
+
+        /// <summary>Read-only features: look things up, export.</summary>
+        Explore,
+
+        /// <summary>Features that modify security in the organization.</summary>
+        Change
+    }
+
     /// <summary>A section of the toolkit, shown as one item of the left navigation rail.</summary>
     internal interface IFeature
     {
@@ -32,7 +45,10 @@ namespace SecurityToolkit.Features
         string Title { get; }
         string Glyph { get; }
 
-        /// <summary>Position in the rail; lower comes first.</summary>
+        /// <summary>The heading it is listed under.</summary>
+        FeatureGroup Group { get; }
+
+        /// <summary>Position within its group; lower comes first.</summary>
         int Order { get; }
 
         FeatureView CreateView(IFeatureHost host);
@@ -102,7 +118,7 @@ namespace SecurityToolkit.Features
 
         internal static IReadOnlyList<IFeature> Order(IEnumerable<IFeature> features)
         {
-            var list = features.OrderBy(f => f.Order).ThenBy(f => f.Title, StringComparer.OrdinalIgnoreCase).ToList();
+            var list = features.OrderBy(f => f.Group).ThenBy(f => f.Order).ThenBy(f => f.Title, StringComparer.OrdinalIgnoreCase).ToList();
             var duplicate = list.GroupBy(f => f.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
             if (duplicate != null)
             {

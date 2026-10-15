@@ -14,6 +14,7 @@ namespace SecurityToolkit.Features
         public string Id => "users-by-role";
         public string Title => "Users by role";
         public string Glyph => Glyphs.Permissions;
+        public FeatureGroup Group => FeatureGroup.Explore;
         public int Order => 30;
 
         public FeatureView CreateView(IFeatureHost host)

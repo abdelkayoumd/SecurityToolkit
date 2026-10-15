@@ -13,6 +13,7 @@ namespace SecurityToolkit.Features
         public string Id => "team-members";
         public string Title => "Team members";
         public string Glyph => Glyphs.Group;
+        public FeatureGroup Group => FeatureGroup.Explore;
         public int Order => 20;
 
         public FeatureView CreateView(IFeatureHost host)

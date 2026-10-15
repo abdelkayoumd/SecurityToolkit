@@ -14,6 +14,7 @@ namespace SecurityToolkit.Features
         public string Id => "assign-user-roles";
         public string Title => "Assign roles to users";
         public string Glyph => Glyphs.AddPerson;
+        public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 60;
 
         public FeatureView CreateView(IFeatureHost host)
@@ -74,6 +75,7 @@ namespace SecurityToolkit.Features
         public string Id => "assign-team-roles";
         public string Title => "Assign roles to teams";
         public string Glyph => Glyphs.Security;
+        public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 70;
 
         public FeatureView CreateView(IFeatureHost host)
@@ -124,7 +126,8 @@ namespace SecurityToolkit.Features
     {
         public string Id => "assign-team-membership";
         public string Title => "Manage team membership";
-        public string Glyph => Glyphs.Group;
+        public string Glyph => Glyphs.Swap;
+        public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 80;
 
         public FeatureView CreateView(IFeatureHost host)

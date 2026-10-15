@@ -175,10 +175,11 @@ namespace SecurityToolkit.Tests
     {
         private sealed class Stub : IFeature
         {
-            public Stub(string id, int order, string title = null) { Id = id; Order = order; Title = title ?? id; }
+            public Stub(string id, int order, string title = null, FeatureGroup group = FeatureGroup.Explore) { Id = id; Order = order; Title = title ?? id; Group = group; }
             public string Id { get; }
             public string Title { get; }
             public string Glyph => "";
+            public FeatureGroup Group { get; }
             public int Order { get; }
             public FeatureView CreateView(IFeatureHost host) => throw new NotSupportedException();
         }
@@ -188,6 +189,36 @@ namespace SecurityToolkit.Tests
         {
             var ordered = FeatureRegistry.Order(new IFeature[] { new Stub("c", 2), new Stub("b", 1, "Zeta"), new Stub("a", 1, "Alpha") });
             Assert.Equal(new[] { "a", "b", "c" }, ordered.Select(f => f.Id));
+        }
+
+        [Fact]
+        public void Order_GroupsComeFirst_ThenOrderWithinTheGroup()
+        {
+            var ordered = FeatureRegistry.Order(new IFeature[]
+            {
+                new Stub("change1", 1, group: FeatureGroup.Change),
+                new Stub("explore9", 9, group: FeatureGroup.Explore),
+                new Stub("home", 50, group: FeatureGroup.Start),
+                new Stub("explore2", 2, group: FeatureGroup.Explore)
+            });
+            Assert.Equal(new[] { "home", "explore2", "explore9", "change1" }, ordered.Select(f => f.Id));
+        }
+
+        [Fact]
+        public void EveryFeatureThatChangesSecurity_IsUnderChange_AndEveryReadOnlyOneUnderExplore()
+        {
+            var all = FeatureRegistry.CreateAll().ToDictionary(f => f.Id, f => f.Group);
+
+            Assert.Equal(FeatureGroup.Start, all["home"]);
+            foreach (var id in new[] { "assign-user-roles", "assign-team-roles", "assign-team-membership", "clone-user" })
+            {
+                Assert.Equal(FeatureGroup.Change, all[id]);
+            }
+
+            foreach (var id in new[] { "users-and-teams", "team-members", "users-by-role", "users-by-business-unit", "privilege-finder" })
+            {
+                Assert.Equal(FeatureGroup.Explore, all[id]);
+            }
         }
 
         [Fact]

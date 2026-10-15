@@ -15,7 +15,8 @@ namespace SecurityToolkit.Features
     {
         public string Id => "users-by-business-unit";
         public string Title => "Users by business unit";
-        public string Glyph => Glyphs.Contact;
+        public string Glyph => Glyphs.Business;
+        public FeatureGroup Group => FeatureGroup.Explore;
         public int Order => 40;
 
         public FeatureView CreateView(IFeatureHost host)

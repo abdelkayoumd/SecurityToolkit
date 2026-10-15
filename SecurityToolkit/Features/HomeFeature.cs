@@ -13,6 +13,7 @@ namespace SecurityToolkit.Features
         public string Id => "home";
         public string Title => "Home";
         public string Glyph => Glyphs.Home;
+        public FeatureGroup Group => FeatureGroup.Start;
         public int Order => 0;
 
         public FeatureView CreateView(IFeatureHost host)
