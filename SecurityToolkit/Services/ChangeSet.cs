@@ -23,6 +23,46 @@ namespace SecurityToolkit.Services
         public string Target { get; }
         public OrganizationRequest Request { get; }
         public string Description => $"{Action}: {Subject} → {Target}";
+
+        /// <summary>The change that puts things back as they were, or null when this one cannot be undone.</summary>
+        public ChangeItem Inverse { get; set; }
+    }
+
+    /// <summary>
+    /// What a write feature is about to do: the changes, plus notes on what was left out and why. It is shown to the
+    /// user for approval before anything is sent to Dataverse.
+    /// </summary>
+    internal sealed class ChangePlan
+    {
+        public List<ChangeItem> Items { get; } = new List<ChangeItem>();
+
+        /// <summary>Things that were skipped or need attention ("no copy of role X in business unit Y").</summary>
+        public List<string> Notes { get; } = new List<string>();
+
+        /// <summary>True when every change in the plan can be undone.</summary>
+        public bool IsReversible => Items.Count > 0 && Items.All(i => i.Inverse != null);
+
+        /// <summary>
+        /// The plan that undoes <paramref name="done"/> (the changes that succeeded): their inverses, last change first.
+        /// Changes without an inverse are reported in the notes.
+        /// </summary>
+        public static ChangePlan UndoOf(IEnumerable<ChangeItem> done)
+        {
+            var plan = new ChangePlan();
+            foreach (var item in done.Reverse())
+            {
+                if (item.Inverse != null)
+                {
+                    plan.Items.Add(item.Inverse);
+                }
+                else
+                {
+                    plan.Notes.Add($"Cannot be undone: {item.Description}");
+                }
+            }
+
+            return plan;
+        }
     }
 
     internal sealed class ChangeResult

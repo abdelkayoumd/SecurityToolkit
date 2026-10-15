@@ -35,6 +35,16 @@ namespace SecurityToolkit.Models
         public int TeamType { get; set; }
         public bool IsDefault { get; set; }
 
+        /// <summary>
+        /// Only plain owner teams, other than a business unit's default team, have members that can be added and
+        /// removed by hand. Access-team members come from record sharing, group-team members from the Entra group,
+        /// and the default team always holds every user of its business unit.
+        /// </summary>
+        public bool IsManuallyManaged => TeamType == 0 && !IsDefault;
+
+        /// <summary>Access teams have no security roles (they carry record-level access instead).</summary>
+        public bool CanHoldRoles => TeamType != 1;
+
         public string TypeName
         {
             get
