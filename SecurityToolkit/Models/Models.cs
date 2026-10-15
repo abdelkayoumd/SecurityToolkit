@@ -93,6 +93,8 @@ namespace SecurityToolkit.Models
         public Guid RootKey { get; set; }
         public string Name { get; set; }
         public int Copies { get; set; }
+        /// <summary>How widely the role exists, for display: "77 business units" (a role has one copy per business unit).</summary>
+        public string Availability => Copies == 1 ? "1 business unit" : $"{Copies} business units";
     }
 
     internal sealed class TableInfo

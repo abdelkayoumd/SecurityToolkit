@@ -59,7 +59,7 @@ namespace SecurityToolkit.Features
                     return;
                 }
 
-                Master.SetData(Graph.RoleChoices(), "Name=Role", "Copies=Business unit copies");
+                Master.SetData(Graph.RoleChoices(), "Name=Role", "Availability=Available in");
                 if (_roles.Count == 0)
                 {
                     InfoLabel.Text = PromptText;
