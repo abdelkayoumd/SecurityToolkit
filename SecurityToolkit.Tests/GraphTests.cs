@@ -105,15 +105,6 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void RoleChoices_DescribeWhereARoleExistsInWordsRatherThanABareNumber()
-        {
-            var choices = _o.Graph.RoleChoices();
-
-            Assert.Equal("2 business units", choices.Single(c => c.Name == "Seller").Availability);
-            Assert.Equal("1 business unit", choices.Single(c => c.Name == "Admin").Availability);
-        }
-
-        [Fact]
         public void TeamMembers_ListsMembersPerTeam()
         {
             var rows = _o.Graph.TeamMembers(new[] { _o.Reviewers.Id, _o.Empty.Id }, includeDisabled: false);

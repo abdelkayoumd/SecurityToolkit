@@ -12,7 +12,6 @@ namespace SecurityToolkit.Features
     {
         public Guid Key { get; set; }
         public string Name { get; set; }
-        public string Detail { get; set; }
         public string BusinessUnit { get; set; }
         /// <summary>"2 of 5" for the subjects selected on the left.</summary>
         public string Assigned { get; set; }

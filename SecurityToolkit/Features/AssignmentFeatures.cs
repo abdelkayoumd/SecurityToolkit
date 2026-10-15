@@ -30,7 +30,7 @@ namespace SecurityToolkit.Features
             {
             }
 
-            protected override string[] RowColumns => new[] { "Name=Role", "Detail=Available in", "Assigned=Users who have it" };
+            protected override string[] RowColumns => new[] { "Name=Role", "Assigned=Users who have it" };
 
             protected override IEnumerable<Control> ExtraCommands()
             {
@@ -47,7 +47,7 @@ namespace SecurityToolkit.Features
 
             protected override IEnumerable<PickRow> BuildRows()
             {
-                return Graph.RoleChoices().Select(c => new PickRow { Key = c.RootKey, Name = c.Name, Detail = c.Availability });
+                return Graph.RoleChoices().Select(c => new PickRow { Key = c.RootKey, Name = c.Name });
             }
 
             protected override IReadOnlyList<Guid> SelectedSubjectIds()
@@ -88,7 +88,7 @@ namespace SecurityToolkit.Features
             {
             }
 
-            protected override string[] RowColumns => new[] { "Name=Role", "Detail=Available in", "Assigned=Teams that have it" };
+            protected override string[] RowColumns => new[] { "Name=Role", "Assigned=Teams that have it" };
 
             protected override void FillSubjects()
             {
@@ -98,7 +98,7 @@ namespace SecurityToolkit.Features
 
             protected override IEnumerable<PickRow> BuildRows()
             {
-                return Graph.RoleChoices().Select(c => new PickRow { Key = c.RootKey, Name = c.Name, Detail = c.Availability });
+                return Graph.RoleChoices().Select(c => new PickRow { Key = c.RootKey, Name = c.Name });
             }
 
             protected override IReadOnlyList<Guid> SelectedSubjectIds()
