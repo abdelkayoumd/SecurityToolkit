@@ -18,5 +18,6 @@ namespace SecurityToolkit.UI
         public const string Clone = "";
         public const string Business = "";
         public const string Swap = "";
+        public const string Compare = "";
     }
 }

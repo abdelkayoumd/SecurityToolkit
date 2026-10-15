@@ -106,6 +106,7 @@ namespace SecurityToolkit.Features
                 new HomeFeature(),
                 new UsersAndTeamsFeature(),
                 new TeamMembersFeature(),
+                new CompareUsersFeature(),
                 new UsersByRoleFeature(),
                 new UsersByBusinessUnitFeature(),
                 new PrivilegeFinderFeature(),

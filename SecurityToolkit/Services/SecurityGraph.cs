@@ -17,6 +17,21 @@ namespace SecurityToolkit.Services
         public string Status { get; set; }
     }
 
+    /// <summary>One line of a side-by-side comparison of two users.</summary>
+    internal sealed class CompareRow
+    {
+        /// <summary>"Business unit", "Security role" or "Team".</summary>
+        public string Category { get; set; }
+        public string Item { get; set; }
+        /// <summary>What the first user has for this item: a check mark, where a role comes from, or a business unit name; empty when they lack it.</summary>
+        public string A { get; set; }
+        public string B { get; set; }
+        /// <summary>"Both", "Only {first user}", "Only {second user}", or for business units "Same" / "Differs".</summary>
+        public string Result { get; set; }
+        /// <summary>True when the two users differ on this item.</summary>
+        public bool IsDifference { get; set; }
+    }
+
     internal sealed class BusinessUnitRow
     {
         public Guid Id { get; set; }
@@ -297,6 +312,120 @@ namespace SecurityToolkit.Services
                     Status = user.Status
                 });
             }
+        }
+
+        /// <summary>
+        /// Compares two users on business unit, security roles and teams. Roles are compared as each user effectively
+        /// has them: directly or through a team, with copies in different business units counting as the same role.
+        /// </summary>
+        public IReadOnlyList<CompareRow> CompareUsers(UserInfo first, UserInfo second)
+        {
+            var (nameA, nameB) = Labels(first, second);
+            var rows = new List<CompareRow>
+            {
+                new CompareRow
+                {
+                    Category = "Business unit",
+                    Item = "Business unit",
+                    A = first.BusinessUnitName ?? string.Empty,
+                    B = second.BusinessUnitName ?? string.Empty,
+                    Result = first.BusinessUnitId == second.BusinessUnitId ? "Same" : "Differs",
+                    IsDifference = first.BusinessUnitId != second.BusinessUnitId
+                }
+            };
+
+            var rolesA = EffectiveRoles(first);
+            var rolesB = EffectiveRoles(second);
+            foreach (var key in rolesA.Keys.Union(rolesB.Keys).OrderBy(k => (rolesA.TryGetValue(k, out var x) ? x : rolesB[k]).Name, Names))
+            {
+                var inA = rolesA.TryGetValue(key, out var a);
+                var inB = rolesB.TryGetValue(key, out var b);
+                rows.Add(Row("Security role", (inA ? a : b).Name, inA ? a.Source : string.Empty, inB ? b.Source : string.Empty, inA, inB, nameA, nameB));
+            }
+
+            var teamsA = TeamsOf(first.Id).ToDictionary(t => t.Id);
+            var teamsB = TeamsOf(second.Id).ToDictionary(t => t.Id);
+            foreach (var id in teamsA.Keys.Union(teamsB.Keys).OrderBy(i => (teamsA.TryGetValue(i, out var x) ? x : teamsB[i]).Name, Names))
+            {
+                var inA = teamsA.ContainsKey(id);
+                var inB = teamsB.ContainsKey(id);
+                rows.Add(Row("Team", (inA ? teamsA[id] : teamsB[id]).Name, inA ? "✓" : string.Empty, inB ? "✓" : string.Empty, inA, inB, nameA, nameB));
+            }
+
+            return rows;
+        }
+
+        private static CompareRow Row(string category, string item, string a, string b, bool inA, bool inB, string nameA, string nameB)
+        {
+            return new CompareRow
+            {
+                Category = category,
+                Item = item,
+                A = a,
+                B = b,
+                Result = inA && inB ? "Both" : inA ? "Only " + nameA : "Only " + nameB,
+                IsDifference = !(inA && inB)
+            };
+        }
+
+        /// <summary>The names to show for the two sides; two users with the same name are told apart by their user names.</summary>
+        internal static (string, string) Labels(UserInfo first, UserInfo second)
+        {
+            if (!string.Equals(first.FullName, second.FullName, StringComparison.CurrentCultureIgnoreCase))
+            {
+                return (first.FullName, second.FullName);
+            }
+
+            return ($"{first.FullName} ({first.DomainName})", $"{second.FullName} ({second.DomainName})");
+        }
+
+        private sealed class EffectiveRole
+        {
+            public string Name;
+            public string Source;
+        }
+
+        /// <summary>Each role the user has (by root role), and where it comes from: "Direct", "via Team" or both.</summary>
+        private Dictionary<Guid, EffectiveRole> EffectiveRoles(UserInfo user)
+        {
+            var direct = new HashSet<Guid>(DirectRolesOf(user.Id).Select(r => r.RootKey));
+            var viaTeams = new Dictionary<Guid, List<string>>();
+            var names = new Dictionary<Guid, string>();
+
+            foreach (var role in DirectRolesOf(user.Id))
+            {
+                names[role.RootKey] = role.Name;
+            }
+
+            foreach (var team in TeamsOf(user.Id))
+            {
+                foreach (var role in RolesOfTeam(team.Id))
+                {
+                    names[role.RootKey] = role.Name;
+                    if (!viaTeams.TryGetValue(role.RootKey, out var list))
+                    {
+                        viaTeams[role.RootKey] = list = new List<string>();
+                    }
+
+                    list.Add(team.Name);
+                }
+            }
+
+            return names.ToDictionary(n => n.Key, n =>
+            {
+                var parts = new List<string>();
+                if (direct.Contains(n.Key))
+                {
+                    parts.Add("Direct");
+                }
+
+                if (viaTeams.TryGetValue(n.Key, out var teamNames))
+                {
+                    parts.Add("via " + string.Join(", ", teamNames.Distinct().OrderBy(t => t, Names)));
+                }
+
+                return new EffectiveRole { Name = n.Value, Source = string.Join(" + ", parts) };
+            });
         }
 
         private IReadOnlyList<RoleInfo> Resolve(IEnumerable<Guid> roleIds)
