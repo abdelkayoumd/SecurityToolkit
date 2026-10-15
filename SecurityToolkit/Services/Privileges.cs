@@ -29,6 +29,7 @@ namespace SecurityToolkit.Services
 
     internal sealed class RolePrivilegeRow
     {
+        public string Table { get; set; }
         public string Role { get; set; }
         public string BusinessUnit { get; set; }
         public string Depth { get; set; }

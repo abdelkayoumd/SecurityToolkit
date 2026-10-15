@@ -109,9 +109,29 @@ namespace SecurityToolkit.Tests
                         }
 
                         break;
+                    case "privilege":
+                        // Whatever table and access right is asked for, one privilege exists.
+                        result.Entities.Add(new Entity("privilege", Guid.NewGuid()));
+                        break;
+                    case "roleprivileges":
+                        // Admin reaches the whole organization, Auditor its business unit, Seller only the user's own records.
+                        result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = org.Admin.Id, ["privilegedepthmask"] = 8 });
+                        result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = org.Auditor.Id, ["privilegedepthmask"] = 2 });
+                        result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = org.SellerRoot.Id, ["privilegedepthmask"] = 1 });
+                        break;
                 }
 
                 return result;
+            };
+            fake.OnExecute = request =>
+            {
+                var response = new Microsoft.Xrm.Sdk.Messages.RetrieveAllEntitiesResponse();
+                response.Results["EntityMetadata"] = new Microsoft.Xrm.Sdk.Metadata.EntityMetadata[]
+                {
+                    new Microsoft.Xrm.Sdk.Metadata.EntityMetadata { LogicalName = "contact" },
+                    new Microsoft.Xrm.Sdk.Metadata.EntityMetadata { LogicalName = "account" }
+                };
+                return response;
             };
             return fake;
         }

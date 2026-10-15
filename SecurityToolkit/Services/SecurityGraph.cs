@@ -7,6 +7,7 @@ namespace SecurityToolkit.Services
 {
     internal sealed class RoleUserRow
     {
+        public string Role { get; set; }
         public string User { get; set; }
         public string Domain { get; set; }
         public string BusinessUnit { get; set; }
@@ -14,6 +15,15 @@ namespace SecurityToolkit.Services
         public string Assignment { get; set; }
         public string Team { get; set; }
         public string Status { get; set; }
+    }
+
+    internal sealed class BusinessUnitRow
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public string Parent { get; set; }
+        /// <summary>The chain from the root, for example "Root / Sales / Emea".</summary>
+        public string Path { get; set; }
     }
 
     internal sealed class TeamMemberRow
@@ -123,13 +133,14 @@ namespace SecurityToolkit.Services
         public IReadOnlyList<RoleUserRow> UsersInRole(Guid roleRootKey, bool includeDisabled)
         {
             var roleIds = new HashSet<Guid>(Roles.Where(r => r.RootKey == roleRootKey).Select(r => r.Id));
+            var roleName = Roles.FirstOrDefault(r => r.RootKey == roleRootKey)?.Name ?? string.Empty;
             var rows = new List<RoleUserRow>();
 
             foreach (var user in Users.Where(u => includeDisabled || !u.IsDisabled))
             {
                 if (_roleIdsByUser[user.Id].Any(roleIds.Contains))
                 {
-                    rows.Add(ToRoleUserRow(user, "Direct", null));
+                    rows.Add(ToRoleUserRow(roleName, user, "Direct", null));
                 }
             }
 
@@ -142,7 +153,7 @@ namespace SecurityToolkit.Services
 
                 foreach (var member in MembersOf(team.Id).Where(u => includeDisabled || !u.IsDisabled))
                 {
-                    rows.Add(ToRoleUserRow(member, "Via team", team.Name));
+                    rows.Add(ToRoleUserRow(roleName, member, "Via team", team.Name));
                 }
             }
 
@@ -174,6 +185,29 @@ namespace SecurityToolkit.Services
             }
 
             return rows.OrderBy(r => r.Team, Names).ThenBy(r => r.User, Names).ToList();
+        }
+
+        /// <summary>
+        /// Every business unit as a list row, ordered by path ("Root / Sales / Emea") so that sorting by path keeps
+        /// parents directly above their children.
+        /// </summary>
+        public IReadOnlyList<BusinessUnitRow> BusinessUnitRows()
+        {
+            var byId = BusinessUnits.ToDictionary(b => b.Id);
+            return BusinessUnits.Select(unit =>
+                {
+                    var names = new List<string> { unit.Name };
+                    var seen = new HashSet<Guid> { unit.Id };
+                    var parent = unit.ParentId;
+                    while (parent.HasValue && seen.Add(parent.Value) && byId.TryGetValue(parent.Value, out var up))
+                    {
+                        names.Insert(0, up.Name);
+                        parent = up.ParentId;
+                    }
+
+                    return new BusinessUnitRow { Id = unit.Id, Name = unit.Name, Parent = unit.ParentName ?? string.Empty, Path = string.Join(" / ", names) };
+                })
+                .OrderBy(r => r.Path, Names).ToList();
         }
 
         /// <summary>The business unit's id, plus every descendant's when <paramref name="includeChildren"/> is set.</summary>
@@ -271,10 +305,11 @@ namespace SecurityToolkit.Services
                 .Distinct().OrderBy(r => r.Name, Names).ToList();
         }
 
-        private static RoleUserRow ToRoleUserRow(UserInfo user, string assignment, string team)
+        private static RoleUserRow ToRoleUserRow(string role, UserInfo user, string assignment, string team)
         {
             return new RoleUserRow
             {
+                Role = role,
                 User = user.FullName,
                 Domain = user.DomainName,
                 BusinessUnit = user.BusinessUnitName,

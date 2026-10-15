@@ -36,7 +36,7 @@ namespace SecurityToolkit.Features
             _selectionTimer.Tick += (s, e) =>
             {
                 _selectionTimer.Stop();
-                if (Graph != null)
+                if (IsLoaded)
                 {
                     OnMasterSelectionChanged();
                 }
@@ -60,7 +60,7 @@ namespace SecurityToolkit.Features
         public override void OnActivated()
         {
             _activated = true;
-            if (Graph == null)
+            if (!IsLoaded)
             {
                 AutoLoad();
             }
@@ -82,6 +82,19 @@ namespace SecurityToolkit.Features
             InfoLabel.Text = Host.Security == null ? "Connect to an environment to get started." : PromptText;
         }
 
+        /// <summary>True once the left list has its data. By default that is the security graph; features that list something else override it.</summary>
+        protected virtual bool IsLoaded => Graph != null;
+
+        /// <summary>Fetches what the left list shows (on a background thread) and fills it. By default: the security graph.</summary>
+        protected virtual void LoadData()
+        {
+            Host.RunAsync("Loading security data...", security => security.GetGraph(), graph =>
+            {
+                Graph = graph;
+                OnGraphLoaded();
+            });
+        }
+
         /// <summary>Fills the left list when there is already a connection; otherwise waits for the user to connect.</summary>
         private void AutoLoad()
         {
@@ -91,11 +104,7 @@ namespace SecurityToolkit.Features
                 return;
             }
 
-            Host.RunAsync("Loading security data...", security => security.GetGraph(), graph =>
-            {
-                Graph = graph;
-                OnGraphLoaded();
-            });
+            LoadData();
         }
 
         private static Control Side(string title, Control content)

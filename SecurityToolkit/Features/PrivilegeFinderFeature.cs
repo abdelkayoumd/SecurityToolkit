@@ -8,7 +8,10 @@ using SecurityToolkit.UI;
 
 namespace SecurityToolkit.Features
 {
-    /// <summary>R-05: pick a table and a privilege, and list the security roles that grant it at that depth or wider.</summary>
+    /// <summary>
+    /// R-05: pick one or more tables on the left, a privilege and a minimum depth on the command bar; the security
+    /// roles that grant it (at that depth or wider) appear on the right.
+    /// </summary>
     internal sealed class PrivilegeFinderFeature : IFeature
     {
         public string Id => "privilege-finder";
@@ -29,20 +32,37 @@ namespace SecurityToolkit.Features
             public override string ToString() => Text;
         }
 
-        private sealed class PrivilegeFinderView : DataView
+        private sealed class PrivilegeFinderView : MasterDetailView
         {
-            private TableInfo _table;
+            private IReadOnlyList<TableInfo> _tables;
+            private IReadOnlyList<TableInfo> _picked = new TableInfo[0];
             private ComboBox _cmbPrivilege;
             private ComboBox _cmbDepth;
 
-            public PrivilegeFinderView(IFeatureHost host) : base(host)
+            public PrivilegeFinderView(IFeatureHost host)
+                : base(host, "Tables (Ctrl/Shift-click to select several)", "Roles that grant the privilege")
             {
-                InfoLabel.Text = "Select a table and a privilege to list the roles that grant it.";
+                InfoLabel.Text = "Connect to an environment to get started.";
+            }
+
+            protected override string PromptText => "Select one or more tables on the left, then a privilege, to see which roles grant it.";
+
+            // This feature lists tables, not the security graph, so it has its own notion of "loaded".
+            protected override bool IsLoaded => _tables != null;
+
+            protected override void LoadData()
+            {
+                Host.RunAsync("Loading tables...", security => security.GetTables(), tables =>
+                {
+                    _tables = tables;
+                    FillTables();
+                });
             }
 
             protected override IEnumerable<Control> CreateCommands()
             {
-                yield return Command(Theme.GlyphSearch, "Select table", PickTable, strong: true);
+                yield return Command(Theme.GlyphRefresh, "Refresh", ReloadTables, strong: true);
+                yield return CommandSeparator();
 
                 _cmbPrivilege = Combo(Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>().Select(k => new Choice<PrivilegeKind>(k, Privileges.Label(k))), 110);
                 _cmbPrivilege.SelectedIndex = 1; // Read
@@ -68,52 +88,86 @@ namespace SecurityToolkit.Features
                     Margin = new Padding(2, 9, 6, 0)
                 };
                 box.Items.AddRange(items.Cast<object>().ToArray());
-                box.SelectedIndexChanged += (s, e) => Find();
+                box.SelectedIndexChanged += (s, e) => FindRoles();
                 return box;
             }
 
             protected override void Reset()
             {
-                _table = null;
+                _tables = null;
+                _picked = new TableInfo[0];
                 base.Reset();
-                InfoLabel.Text = "Select a table and a privilege to list the roles that grant it.";
             }
 
             protected override void OnGraphLoaded()
             {
+                // Nothing to do: the left list comes from LoadData, not from the security graph.
             }
 
-            private void PickTable()
+            private void ReloadTables()
             {
-                Host.EnsureConnection(() => Host.RunAsync("Loading tables...", security => security.GetTables(), tables =>
+                Host.EnsureConnection(() =>
                 {
-                    var picked = PickerDialog<TableInfo>.Pick(this, "Select a table", tables, false, "DisplayName=Table", "LogicalName=Logical name");
-                    if (picked == null)
-                    {
-                        return;
-                    }
-
-                    _table = picked[0];
-                    Find();
-                }));
+                    Host.Security.Invalidate();
+                    LoadData();
+                });
             }
 
-            private void Find()
+            private void FillTables()
             {
-                if (_table == null || _cmbPrivilege.SelectedItem == null || _cmbDepth.SelectedItem == null)
+                Master.SetData(_tables, "DisplayName=Table", "LogicalName=Logical name");
+                if (_picked.Count == 0)
+                {
+                    InfoLabel.Text = PromptText;
+                }
+                else
+                {
+                    FindRoles();
+                }
+            }
+
+            protected override void OnMasterSelectionChanged()
+            {
+                var picked = Master.GetSelected<TableInfo>();
+                if (picked.Count == 0)
+                {
+                    // Only cleared (by a filter, say): keep showing the last choice.
+                    return;
+                }
+
+                _picked = picked;
+                FindRoles();
+            }
+
+            private void FindRoles()
+            {
+                if (_picked.Count == 0 || _cmbPrivilege == null || _cmbDepth == null || _cmbPrivilege.SelectedItem == null || _cmbDepth.SelectedItem == null)
                 {
                     return;
                 }
 
-                var table = _table;
+                var tables = _picked;
                 var kind = ((Choice<PrivilegeKind>)_cmbPrivilege.SelectedItem).Value;
                 var depth = ((Choice<PrivilegeDepth>)_cmbDepth.SelectedItem).Value;
 
-                Host.RunAsync("Finding roles...", security => security.FindRolesWithPrivilege(table.LogicalName, kind, depth), rows =>
+                Host.RunAsync("Finding roles...", security =>
                 {
-                    Grid.SetData(rows, "Role", "BusinessUnit=Business Unit", "Depth");
+                    var rows = new List<RolePrivilegeRow>();
+                    foreach (var table in tables)
+                    {
+                        foreach (var row in security.FindRolesWithPrivilege(table.LogicalName, kind, depth))
+                        {
+                            row.Table = table.DisplayName;
+                            rows.Add(row);
+                        }
+                    }
+
+                    return rows;
+                }, rows =>
+                {
+                    Grid.SetData(rows, "Table", "Role", "BusinessUnit=Business Unit", "Depth");
                     var wider = depth == PrivilegeDepth.Organization ? string.Empty : " or wider";
-                    InfoLabel.Text = $"{rows.Count} role(s) grant {Privileges.Label(kind)} on {table.DisplayName} at {Privileges.Label(depth)} level{wider}";
+                    InfoLabel.Text = $"{rows.Count} role(s) grant {Privileges.Label(kind)} on {tables.Count} table(s) at {Privileges.Label(depth)} level{wider}";
                 });
             }
         }
