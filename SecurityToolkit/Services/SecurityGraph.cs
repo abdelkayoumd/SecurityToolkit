@@ -87,6 +87,7 @@ namespace SecurityToolkit.Services
         private readonly ILookup<Guid, Guid> _userIdsByTeam;
         private readonly ILookup<Guid, Guid> _roleIdsByUser;
         private readonly ILookup<Guid, Guid> _roleIdsByTeam;
+        private readonly HashSet<Guid> _assignedRoleIds;
 
         public SecurityGraph(
             IEnumerable<UserInfo> users, IEnumerable<RoleInfo> roles, IEnumerable<TeamInfo> teams,
@@ -107,12 +108,19 @@ namespace SecurityToolkit.Services
             _userIdsByTeam = memberList.ToLookup(m => m.TeamId, m => m.UserId);
             _roleIdsByUser = userRoles.ToLookup(r => r.UserId, r => r.RoleId);
             _roleIdsByTeam = teamRoles.ToLookup(r => r.TeamId, r => r.RoleId);
+            _assignedRoleIds = new HashSet<Guid>(_roleIdsByUser.SelectMany(g => g).Concat(_roleIdsByTeam.SelectMany(g => g)));
         }
 
         public IReadOnlyList<UserInfo> Users { get; }
         public IReadOnlyList<RoleInfo> Roles { get; }
         public IReadOnlyList<TeamInfo> Teams { get; }
         public IReadOnlyList<BusinessUnitInfo> BusinessUnits { get; }
+
+        /// <summary>True when this copy of a role is assigned to at least one user or team.</summary>
+        public bool RoleIsAssigned(Guid roleId)
+        {
+            return _assignedRoleIds.Contains(roleId);
+        }
 
         public IReadOnlyList<TeamInfo> TeamsOf(Guid userId)
         {

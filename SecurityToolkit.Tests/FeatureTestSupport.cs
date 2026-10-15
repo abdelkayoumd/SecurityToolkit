@@ -44,6 +44,7 @@ namespace SecurityToolkit.Tests
                                 ["fullname"] = u.FullName,
                                 ["domainname"] = u.DomainName,
                                 ["isdisabled"] = u.IsDisabled,
+                                ["accessmode"] = new OptionSetValue(u.AccessMode),
                                 ["businessunitid"] = new EntityReference("businessunit", u.BusinessUnitId.Value) { Name = u.BusinessUnitName }
                             });
                         }
@@ -55,6 +56,7 @@ namespace SecurityToolkit.Tests
                             var e = new Entity("role", r.Id)
                             {
                                 ["name"] = r.Name,
+                                ["ismanaged"] = r.IsManaged,
                                 ["businessunitid"] = new EntityReference("businessunit", r.BusinessUnitId ?? Guid.NewGuid()) { Name = r.BusinessUnitName }
                             };
                             if (r.RootRoleId.HasValue)

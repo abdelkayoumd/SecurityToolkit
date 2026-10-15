@@ -10,6 +10,10 @@ namespace SecurityToolkit.Models
         public Guid? BusinessUnitId { get; set; }
         public string BusinessUnitName { get; set; }
         public bool IsDisabled { get; set; }
+        /// <summary>The user's access mode: 0 read-write, 1 administrative, 2 read, 3 support, 4 non-interactive.</summary>
+        public int AccessMode { get; set; }
+        /// <summary>Service and application accounts (non-interactive access) are not people and rarely need roles in the usual way.</summary>
+        public bool IsServiceAccount => AccessMode == 4;
         public string Status => IsDisabled ? "Disabled" : "Active";
     }
 
@@ -21,6 +25,8 @@ namespace SecurityToolkit.Models
         public string BusinessUnitName { get; set; }
         /// <summary>Every business unit has its own copy of a role; copies share the same root role.</summary>
         public Guid? RootRoleId { get; set; }
+        /// <summary>True for roles that come from a managed solution; those cannot be deleted.</summary>
+        public bool IsManaged { get; set; }
         /// <summary>Identifies "the same role" across business units.</summary>
         public Guid RootKey => RootRoleId ?? Id;
     }

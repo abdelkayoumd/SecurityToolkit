@@ -133,7 +133,7 @@ namespace SecurityToolkit.Services
         {
             return _users ?? (_users = Fetch(new QueryExpression("systemuser")
             {
-                ColumnSet = new ColumnSet("fullname", "domainname", "businessunitid", "isdisabled"),
+                ColumnSet = new ColumnSet("fullname", "domainname", "businessunitid", "isdisabled", "accessmode"),
                 // Excludes the "# ..." system placeholders, as the former teams_listing tool did.
                 Criteria = { Conditions = { new ConditionExpression("fullname", ConditionOperator.DoesNotBeginWith, "#") } },
                 Orders = { new OrderExpression("fullname", OrderType.Ascending) }
@@ -144,7 +144,8 @@ namespace SecurityToolkit.Services
                 DomainName = e.GetAttributeValue<string>("domainname"),
                 BusinessUnitId = e.GetAttributeValue<EntityReference>("businessunitid")?.Id,
                 BusinessUnitName = e.GetAttributeValue<EntityReference>("businessunitid")?.Name,
-                IsDisabled = e.GetAttributeValue<bool>("isdisabled")
+                IsDisabled = e.GetAttributeValue<bool>("isdisabled"),
+                AccessMode = e.GetAttributeValue<OptionSetValue>("accessmode")?.Value ?? 0
             }));
         }
 
@@ -152,7 +153,7 @@ namespace SecurityToolkit.Services
         {
             return _roles ?? (_roles = Fetch(new QueryExpression("role")
             {
-                ColumnSet = new ColumnSet("name", "businessunitid", "parentrootroleid"),
+                ColumnSet = new ColumnSet("name", "businessunitid", "parentrootroleid", "ismanaged"),
                 Orders = { new OrderExpression("name", OrderType.Ascending) }
             }, e => new RoleInfo
             {
@@ -160,7 +161,8 @@ namespace SecurityToolkit.Services
                 Name = e.GetAttributeValue<string>("name"),
                 BusinessUnitId = e.GetAttributeValue<EntityReference>("businessunitid")?.Id,
                 BusinessUnitName = e.GetAttributeValue<EntityReference>("businessunitid")?.Name,
-                RootRoleId = e.GetAttributeValue<EntityReference>("parentrootroleid")?.Id
+                RootRoleId = e.GetAttributeValue<EntityReference>("parentrootroleid")?.Id,
+                IsManaged = e.GetAttributeValue<bool>("ismanaged")
             }));
         }
 

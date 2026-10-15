@@ -110,6 +110,7 @@ namespace SecurityToolkit.Features
                 new UsersByRoleFeature(),
                 new UsersByBusinessUnitFeature(),
                 new PrivilegeFinderFeature(),
+                new CleanupReportFeature(),
                 new UserRolesFeature(),
                 new TeamRolesFeature(),
                 new TeamMembershipFeature(),
