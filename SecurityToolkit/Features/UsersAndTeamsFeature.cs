@@ -25,8 +25,10 @@ namespace SecurityToolkit.Features
 
         private sealed class UsersAndTeamsView : DataView
         {
+            private readonly ImageList _icons = TreeIcons.Create();
             private readonly TreeView _tree;
             private readonly Timer _selectionTimer;
+            private IReadOnlyList<UserInfo> _shownUsers = new UserInfo[0];
             private CheckBox _chkDisabled;
 
             public UsersAndTeamsView(IFeatureHost host) : base(host)
@@ -39,7 +41,9 @@ namespace SecurityToolkit.Features
                     ForeColor = Theme.TextPrimary,
                     Font = Theme.FontRegular,
                     ShowLines = false,
-                    ItemHeight = 24
+                    ItemHeight = 24,
+                    ShowNodeToolTips = true,
+                    ImageList = _icons
                 };
 
                 var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
@@ -78,6 +82,7 @@ namespace SecurityToolkit.Features
                 if (disposing)
                 {
                     _selectionTimer?.Dispose();
+                    _icons.Dispose();
                 }
 
                 base.Dispose(disposing);
@@ -101,6 +106,7 @@ namespace SecurityToolkit.Features
             protected override void Reset()
             {
                 _tree.Nodes.Clear();
+                _shownUsers = new UserInfo[0];
                 base.Reset();
                 InfoLabel.Text = "Load the users, select some, then show their teams and roles.";
             }
@@ -139,68 +145,99 @@ namespace SecurityToolkit.Features
                     users = Grid.GetVisible<UserInfo>();
                 }
 
+                _shownUsers = users;
                 _tree.BeginUpdate();
                 _tree.Nodes.Clear();
                 foreach (var user in users)
                 {
-                    var userNode = new TreeNode(user.FullName);
-                    foreach (var team in Graph.TeamsOf(user.Id))
-                    {
-                        var teamNode = new TreeNode(team.Name);
-                        foreach (var role in Graph.RolesOfTeam(team.Id))
-                        {
-                            teamNode.Nodes.Add(new TreeNode(role.Name));
-                        }
-
-                        userNode.Nodes.Add(teamNode);
-                    }
-
-                    _tree.Nodes.Add(userNode);
+                    _tree.Nodes.Add(BuildUserNode(user));
                 }
 
                 CollapseToUsers();
                 _tree.EndUpdate();
-                InfoLabel.Text = $"Teams and roles of {users.Count} user(s). Team roles are shown under each team.";
+                InfoLabel.Text = $"{users.Count} user(s): roles assigned directly, and teams with the roles each team gives.";
             }
 
-            /// <summary>Users expanded to their teams, teams collapsed.</summary>
+            /// <summary>
+            /// A user with two headings: the roles assigned to them directly, and their teams (each team's roles are
+            /// the ones the user inherits from it).
+            /// </summary>
+            private TreeNode BuildUserNode(UserInfo user)
+            {
+                var userNode = Node(user.FullName, TreeIcons.User, "User");
+
+                var directRoles = Graph.DirectRolesOf(user.Id);
+                var directNode = Node($"Direct roles ({directRoles.Count})", TreeIcons.DirectRolesGroup, "Security roles assigned to the user themselves");
+                foreach (var role in directRoles)
+                {
+                    directNode.Nodes.Add(Node(role.Name, TreeIcons.DirectRole, "Assigned directly to the user"));
+                }
+
+                var teams = Graph.TeamsOf(user.Id);
+                var teamsNode = Node($"Teams ({teams.Count})", TreeIcons.TeamsGroup, "Teams the user belongs to; a team's roles apply to all its members");
+                foreach (var team in teams)
+                {
+                    var teamNode = Node(team.Name, TreeIcons.Team, team.TypeName + " team");
+                    foreach (var role in Graph.RolesOfTeam(team.Id))
+                    {
+                        teamNode.Nodes.Add(Node(role.Name, TreeIcons.InheritedRole, $"Inherited from team {team.Name}"));
+                    }
+
+                    teamsNode.Nodes.Add(teamNode);
+                }
+
+                userNode.Nodes.Add(directNode);
+                userNode.Nodes.Add(teamsNode);
+                return userNode;
+            }
+
+            private static TreeNode Node(string text, int icon, string toolTip)
+            {
+                return new TreeNode(text) { ImageIndex = icon, SelectedImageIndex = icon, ToolTipText = toolTip };
+            }
+
+            /// <summary>
+            /// Users and their headings open; teams stay closed once several users are shown (so a long list stays
+            /// readable), but are opened when there are only a few users.
+            /// </summary>
             private void CollapseToUsers()
             {
                 _tree.ExpandAll();
+                if (_tree.Nodes.Count <= 3)
+                {
+                    return;
+                }
+
                 foreach (TreeNode user in _tree.Nodes)
                 {
-                    foreach (TreeNode team in user.Nodes)
+                    foreach (TreeNode heading in user.Nodes)
                     {
-                        team.Collapse();
+                        foreach (TreeNode team in heading.Nodes)
+                        {
+                            if (team.ImageIndex == TreeIcons.Team)
+                            {
+                                team.Collapse();
+                            }
+                        }
                     }
                 }
             }
 
+            /// <summary>One row per role or team of each shown user, with where each role comes from.</summary>
             private void ExportTree()
             {
                 var rows = new List<IReadOnlyList<string>>();
-                foreach (TreeNode user in _tree.Nodes)
+                if (Graph != null)
                 {
-                    if (user.Nodes.Count == 0)
+                    Graph.BuildUserAccess(_shownUsers, out _, out var detail);
+                    foreach (var row in detail)
                     {
-                        rows.Add(new[] { user.Text, string.Empty, string.Empty });
-                    }
-
-                    foreach (TreeNode team in user.Nodes)
-                    {
-                        if (team.Nodes.Count == 0)
-                        {
-                            rows.Add(new[] { user.Text, team.Text, string.Empty });
-                        }
-
-                        foreach (TreeNode role in team.Nodes)
-                        {
-                            rows.Add(new[] { user.Text, team.Text, role.Text });
-                        }
+                        rows.Add(new[] { row.User, row.BusinessUnit, row.Team, row.Role, row.Source });
                     }
                 }
 
-                ExportUi.Save(this, "UsersTeamsRoles.xlsx", "Users Teams Roles", new[] { "User", "Team", "Role" }, rows);
+                ExportUi.Save(this, "UsersTeamsRoles.xlsx", "Users Teams Roles",
+                    new[] { "User", "Business Unit", "Team", "Role", "Source" }, rows);
             }
         }
     }
