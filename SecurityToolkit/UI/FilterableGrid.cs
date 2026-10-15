@@ -70,7 +70,7 @@ namespace SecurityToolkit.UI
             footer.Controls.Add(_count);
             footer.Controls.Add(_clearFilters);
 
-            _grid = new DataGridView
+            _grid = new QuietGrid
             {
                 Dock = DockStyle.Fill,
                 AllowUserToAddRows = false,
@@ -389,6 +389,39 @@ namespace SecurityToolkit.UI
                 new Rectangle(bounds.Right - FunnelWidth, bounds.Top, FunnelWidth - 2, bounds.Height),
                 active ? Theme.Accent : Theme.TextDisabled,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        }
+
+        /// <summary>
+        /// A DataGridView that receives keyboard focus with nothing selected normally selects its first row by
+        /// itself. Here selection is only ever the user's own act: clicking a row, or arrowing to one. Several
+        /// screens act on "what is selected" (the write features above all), so a row must never be selected by
+        /// accident.
+        /// </summary>
+        private sealed class QuietGrid : DataGridView
+        {
+            protected override void OnEnter(EventArgs e)
+            {
+                var selected = SelectedRows.Cast<DataGridViewRow>().Select(r => r.Index).ToList();
+                var current = CurrentCell;
+                base.OnEnter(e);
+
+                // A click on a row selects that row itself. Anything else (Tab, a view being shown) must leave the
+                // selection exactly as it was: focus can add a first-row selection, or replace an existing one with it.
+                if ((MouseButtons & MouseButtons.Left) != 0)
+                {
+                    return;
+                }
+
+                if (!ReferenceEquals(CurrentCell, current) || SelectedRows.Count != selected.Count)
+                {
+                    CurrentCell = current;
+                    ClearSelection();
+                    foreach (var index in selected.Where(i => i < Rows.Count))
+                    {
+                        Rows[index].Selected = true;
+                    }
+                }
+            }
         }
 
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]

@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release:
@@ -38,6 +39,21 @@ jobs:
       - name: Pack
         run: dotnet pack SecurityToolkit/SecurityToolkit.csproj -c Release -o nupkg
 
+      # Trusted Publishing: nuget.org trusts this workflow through a policy that names this repository and
+      # release.yml, so no API key is stored anywhere. This runs before the GitHub release because a published
+      # package version can never be replaced, while a release can always be edited.
+      - name: NuGet login (OIDC, short-lived key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: abdelkayoumd
+
+      - name: Push to nuget.org
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push nupkg/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
       - name: Create GitHub release
         shell: bash
         env:
@@ -45,5 +61,3 @@ jobs:
         run: >
           gh release create "$GITHUB_REF_NAME" nupkg/*.nupkg SecurityToolkit/bin/Release/SecurityToolkit.dll
           --title "$GITHUB_REF_NAME" --generate-notes
-
-      # nuget.org publishing (Trusted Publishing) is intentionally absent until the project goes public (backlog P-02).

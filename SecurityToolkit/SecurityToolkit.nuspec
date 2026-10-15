@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
-    <id>SecurityToolkit</id>
+    <id>DataverseSecurityToolkit</id>
     <version>$version$</version>
     <title>Security Toolkit</title>
     <authors>abdelkayoumd</authors>
     <license type="expression">MIT</license>
-    <description>One place for Dataverse / Dynamics 365 security administration: users, teams, business units and security roles.</description>
-    <releaseNotes>0.1.0: Foundation (shell, navigation, shared services).</releaseNotes>
-    <tags>XrmToolBox</tags>
+    <description>One place for Dataverse / Dynamics 365 security administration. Explore who has which security roles and teams, compare users, find which roles grant a privilege on a table, and spot forgotten users, roles and teams. Change security safely: assign roles to users and teams, manage team membership and clone a user's profile, with a review of every change first, an undo, and an optional restore file.</description>
+    <releaseNotes>1.0.0: First release. Explore: users and teams, team members, users by role, users by business unit, privilege finder, compare users and a cleanup report. Change: assign roles to users and to teams, manage team membership and clone a user profile; every change is reviewed before it is applied and can be undone.</releaseNotes>
+    <tags>XrmToolBox Dataverse Dynamics365 security roles teams</tags>
     <projectUrl>https://github.com/abdelkayoumd/SecurityToolkit</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/assets/icon.png</iconUrl>
     <icon>icon.png</icon>
     <readme>README.md</readme>
     <repository type="git" url="https://github.com/abdelkayoumd/SecurityToolkit" />

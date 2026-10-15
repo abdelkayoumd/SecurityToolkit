@@ -223,6 +223,45 @@ namespace SecurityToolkit.Tests
             });
         }
 
+        /// <summary>
+        /// Runs the grid's focus handler, which is what the real focus change calls. (In a test the window is never
+        /// the active one, so focus would never reach the grid by itself.)
+        /// </summary>
+        private static void GiveFocus(DataGridView data)
+        {
+            typeof(Control).GetMethod("OnEnter", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                .Invoke(data, new object[] { EventArgs.Empty });
+        }
+
+        [Fact]
+        public void GivingTheListKeyboardFocus_DoesNotSelectARowByItself()
+        {
+            OnUiThread((grid, form) =>
+            {
+                grid.SetData(Users(), Columns);
+                var data = (DataGridView)Sta.Find(grid, c => c is DataGridView);
+
+                GiveFocus(data); // keyboard focus arrives, no mouse click
+
+                Assert.Equal(0, grid.SelectedCount);
+            });
+        }
+
+        [Fact]
+        public void GivingTheListFocus_KeepsWhatWasAlreadySelected()
+        {
+            OnUiThread((grid, form) =>
+            {
+                grid.SetData(Users(), Columns);
+                var data = (DataGridView)Sta.Find(grid, c => c is DataGridView);
+                data.Rows[2].Selected = true;
+
+                GiveFocus(data);
+
+                Assert.Equal("Bob", Assert.Single(grid.GetSelected<UserInfo>()).FullName);
+            });
+        }
+
         [Fact]
         public void Export_FollowsTheFilterAndSort()
         {
