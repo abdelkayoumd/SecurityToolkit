@@ -55,6 +55,22 @@ namespace SecurityToolkit.Services
             }
         }
 
+        /// <summary>The privilege kind for a privilege record's "accessright" value; false for rights that are not one of the eight.</summary>
+        public static bool TryKind(int accessRight, out PrivilegeKind kind)
+        {
+            foreach (PrivilegeKind candidate in Enum.GetValues(typeof(PrivilegeKind)))
+            {
+                if (AccessRight(candidate) == accessRight)
+                {
+                    kind = candidate;
+                    return true;
+                }
+            }
+
+            kind = default(PrivilegeKind);
+            return false;
+        }
+
         public static string Label(PrivilegeKind kind)
         {
             return kind == PrivilegeKind.AppendTo ? "Append To" : kind.ToString();

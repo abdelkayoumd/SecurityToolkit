@@ -20,5 +20,6 @@ namespace SecurityToolkit.UI
         public const string Swap = "";
         public const string Compare = "";
         public const string Help = "";
+        public const string Grid = "";
     }
 }

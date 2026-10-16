@@ -21,8 +21,8 @@ namespace SecurityToolkit.Features
             Master = new FilterableGrid();
 
             var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 36));
-            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 64));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, MasterWidthPercent));
+            layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100 - MasterWidthPercent));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
             Controls.Remove(Grid);
@@ -47,6 +47,9 @@ namespace SecurityToolkit.Features
                 _selectionTimer.Start();
             };
         }
+
+        /// <summary>How much of the width the list on the left takes, in percent. A screen whose results need room can narrow it.</summary>
+        protected virtual int MasterWidthPercent => 36;
 
         /// <summary>The list you pick from.</summary>
         protected FilterableGrid Master { get; }

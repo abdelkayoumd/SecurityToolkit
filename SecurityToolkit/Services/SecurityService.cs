@@ -22,6 +22,9 @@ namespace SecurityToolkit.Services
         private List<RoleInfo> _roles;
         private List<TeamInfo> _teams;
         private List<BusinessUnitInfo> _businessUnits;
+        private const int RoleChunk = 100;
+        private readonly Dictionary<Guid, IReadOnlyList<RoleGrant>> _roleGrants = new Dictionary<Guid, IReadOnlyList<RoleGrant>>();
+        private IReadOnlyDictionary<Guid, PrivilegeTarget> _catalog;
         private SecurityGraph _graph;
         private IReadOnlyList<TableInfo> _tables;
 
@@ -40,6 +43,8 @@ namespace SecurityToolkit.Services
             _businessUnits = null;
             _graph = null;
             _tables = null;
+            _catalog = null;
+            _roleGrants.Clear();
         }
 
         /// <summary>Everything the read-only features need, loaded once (paged) and cached until <see cref="Invalidate"/>.</summary>
@@ -108,6 +113,89 @@ namespace SecurityToolkit.Services
 
             return Privileges.AtLeast(rows, minimum)
                 .OrderBy(r => r.Role, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.BusinessUnit, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>
+        /// Which action on which table each privilege record stands for. Privileges that are not one of the eight
+        /// table actions (or not about a table) are left out.
+        /// </summary>
+        public IReadOnlyDictionary<Guid, PrivilegeTarget> GetPrivilegeCatalog()
+        {
+            if (_catalog != null)
+            {
+                return _catalog;
+            }
+
+            var query = new QueryExpression("privilege")
+            {
+                ColumnSet = new ColumnSet("privilegeid", "accessright"),
+                LinkEntities =
+                {
+                    new LinkEntity("privilege", "privilegeobjecttypecodes", "privilegeid", "privilegeid", JoinOperator.Inner)
+                    {
+                        Columns = new ColumnSet("objecttypecode"),
+                        EntityAlias = "otc"
+                    }
+                }
+            };
+
+            var catalog = new Dictionary<Guid, PrivilegeTarget>();
+            foreach (var entity in RetrieveAll(query))
+            {
+                var table = (entity.GetAttributeValue<AliasedValue>("otc.objecttypecode")?.Value) as string;
+                if (string.IsNullOrEmpty(table) || !Privileges.TryKind(entity.GetAttributeValue<int>("accessright"), out var kind))
+                {
+                    continue;
+                }
+
+                catalog[entity.Id] = new PrivilegeTarget { Table = table, Kind = kind };
+            }
+
+            return _catalog = catalog;
+        }
+
+        /// <summary>
+        /// Every privilege each of the given role records holds, and how far it reaches. Roles already fetched are
+        /// served from memory, so moving between users who share roles costs nothing.
+        /// </summary>
+        public IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrant>> GetRolePrivileges(IEnumerable<Guid> roleIds)
+        {
+            var wanted = roleIds.Distinct().ToList();
+            var missing = wanted.Where(id => !_roleGrants.ContainsKey(id)).ToList();
+
+            for (var offset = 0; offset < missing.Count; offset += RoleChunk)
+            {
+                var chunk = missing.Skip(offset).Take(RoleChunk).ToList();
+                var query = new QueryExpression("roleprivileges")
+                {
+                    ColumnSet = new ColumnSet("roleid", "privilegeid", "privilegedepthmask"),
+                    Criteria = { Conditions = { new ConditionExpression("roleid", ConditionOperator.In, chunk.Cast<object>().ToArray()) } }
+                };
+
+                var found = new Dictionary<Guid, List<RoleGrant>>();
+                foreach (var row in RetrieveAll(query))
+                {
+                    var roleId = row.GetAttributeValue<Guid>("roleid");
+                    if (!found.TryGetValue(roleId, out var list))
+                    {
+                        found[roleId] = list = new List<RoleGrant>();
+                    }
+
+                    list.Add(new RoleGrant
+                    {
+                        PrivilegeId = row.GetAttributeValue<Guid>("privilegeid"),
+                        Depth = Privileges.DepthFromMask(row.GetAttributeValue<int>("privilegedepthmask"))
+                    });
+                }
+
+                // A role with no privileges at all is remembered too, so it is not asked for again.
+                foreach (var id in chunk)
+                {
+                    _roleGrants[id] = found.TryGetValue(id, out var grants) ? (IReadOnlyList<RoleGrant>)grants : new RoleGrant[0];
+                }
+            }
+
+            return wanted.ToDictionary(id => id, id => _roleGrants[id]);
         }
 
         /// <summary>

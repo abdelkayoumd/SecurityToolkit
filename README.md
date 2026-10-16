@@ -24,6 +24,9 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 - **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
   route to it: which role, whether the user holds it directly or through which team, and how far it reaches,
   with the strongest route marked.
+- **What can a user do?** – pick a user and see every table against the eight privileges, each cell showing how
+  far their roles reach (own records, business unit, parent and child units, or the whole organization),
+  shaded so the picture reads at a glance. The reverse of Explain access.
 - **Cleanup report** – six checks for things that look forgotten: active users with no role, disabled users
   still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role.
 - **Assign roles, manage team membership, clone a user** – add or remove security roles for users and teams,
@@ -54,6 +57,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 **See why a user has access**
 
 ![Why Chen Wei can delete accounts: one direct route and two through teams](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/explain-access.png)
+
+**See everything a user can do**
+
+![A user's reach per table and privilege, shaded by how far it extends](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/user-access-matrix.png)
 
 **Spot forgotten users, roles and teams**
 

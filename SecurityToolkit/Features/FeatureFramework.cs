@@ -111,6 +111,7 @@ namespace SecurityToolkit.Features
                 new UsersByBusinessUnitFeature(),
                 new PrivilegeFinderFeature(),
                 new ExplainAccessFeature(),
+                new UserAccessMatrixFeature(),
                 new CleanupReportFeature(),
                 new UserRolesFeature(),
                 new TeamRolesFeature(),

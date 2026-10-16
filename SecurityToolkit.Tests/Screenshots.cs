@@ -124,6 +124,56 @@ namespace SecurityToolkit.Tests
             _memberships.Add(new UserTeamLink { UserId = Users[user].Id, TeamId = Teams[team].Id });
         }
 
+        private static readonly string[] DemoTables = { "account", "appointment", "contact", "incident", "lead", "opportunity", "quote", "task" };
+        private static readonly string[] SalesTables = { "account", "contact", "lead", "opportunity", "quote" };
+        private static readonly string[] ServiceTables = { "account", "contact", "incident" };
+        private Dictionary<(string, PrivilegeKind), Guid> _catalog;
+
+        /// <summary>One privilege record per table and action, with fixed ids.</summary>
+        private Dictionary<(string, PrivilegeKind), Guid> PrivilegeCatalog()
+        {
+            if (_catalog == null)
+            {
+                _catalog = new Dictionary<(string, PrivilegeKind), Guid>();
+                foreach (var table in DemoTables)
+                {
+                    foreach (PrivilegeKind kind in Enum.GetValues(typeof(PrivilegeKind)))
+                    {
+                        _catalog[(table, kind)] = Guid.NewGuid();
+                    }
+                }
+            }
+
+            return _catalog;
+        }
+
+        /// <summary>How far a demo role reaches for a table and action: 1 own records, 2 business unit, 4 parent and child units, 8 organization; 0 for none.</summary>
+        private static int Reach(string role, string table, PrivilegeKind kind)
+        {
+            var everyday = kind == PrivilegeKind.Create || kind == PrivilegeKind.Read || kind == PrivilegeKind.Write
+                           || kind == PrivilegeKind.Append || kind == PrivilegeKind.AppendTo;
+            switch (role)
+            {
+                case "System Administrator":
+                    return 8;
+                case "Sales Manager":
+                    if (SalesTables.Contains(table)) { return kind == PrivilegeKind.Delete ? 2 : 4; }
+                    return kind == PrivilegeKind.Read ? 2 : 0;
+                case "Salesperson":
+                    if (SalesTables.Contains(table)) { return everyday ? 1 : 0; }
+                    return kind == PrivilegeKind.Read ? 1 : 0;
+                case "Customer Service Representative":
+                    if (ServiceTables.Contains(table)) { return everyday ? (table == "incident" ? 2 : 1) : 0; }
+                    return kind == PrivilegeKind.Read ? 1 : 0;
+                case "Customer Service Manager":
+                    return ServiceTables.Contains(table) ? 2 : (kind == PrivilegeKind.Read ? 1 : 0);
+                case "Marketing Professional":
+                    return table == "lead" || table == "contact" ? (kind == PrivilegeKind.Assign || kind == PrivilegeKind.Share ? 0 : 2) : (kind == PrivilegeKind.Read ? 1 : 0);
+                default:
+                    return 0;
+            }
+        }
+
         /// <summary>A fake service that serves this organization, including tables and privilege grants for the privilege finder.</summary>
         public FakeOrganizationService Service()
         {
@@ -132,10 +182,37 @@ namespace SecurityToolkit.Tests
             var serveGraph = service.OnRetrieveMultiple;
             service.OnRetrieveMultiple = query =>
             {
-                switch (((QueryExpression)query).EntityName)
+                var q = (QueryExpression)query;
+                switch (q.EntityName)
                 {
+                    case "privilege" when q.Criteria.Conditions.Count == 0:
+                        // The catalogue of which privilege is which action on which table.
+                        return new EntityCollection(PrivilegeCatalog().Select(p =>
+                        {
+                            var e = new Entity("privilege", p.Value) { ["accessright"] = Privileges.AccessRight(p.Key.Item2) };
+                            e["otc.objecttypecode"] = new AliasedValue("privilegeobjecttypecodes", "objecttypecode", p.Key.Item1);
+                            return e;
+                        }).ToList());
                     case "privilege":
                         return new EntityCollection(new List<Entity> { new Entity("privilege", Guid.NewGuid()) });
+                    case "roleprivileges" when q.Criteria.Conditions.Any(c => c.AttributeName == "roleid"):
+                        // What each requested role record grants, table by table.
+                        var asked = new HashSet<Guid>(q.Criteria.Conditions.First(c => c.AttributeName == "roleid").Values.Cast<Guid>());
+                        var roleNames = graph.SelectMany(r => r.Value.Values.Select(copy => new { copy.Id, Name = r.Key })).ToDictionary(x => x.Id, x => x.Name);
+                        var grants = new EntityCollection();
+                        foreach (var roleId in asked.Where(roleNames.ContainsKey))
+                        {
+                            foreach (var privilege in PrivilegeCatalog())
+                            {
+                                var mask = Reach(roleNames[roleId], privilege.Key.Item1, privilege.Key.Item2);
+                                if (mask > 0)
+                                {
+                                    grants.Entities.Add(new Entity("roleprivileges") { ["roleid"] = roleId, ["privilegeid"] = privilege.Value, ["privilegedepthmask"] = mask });
+                                }
+                            }
+                        }
+
+                        return grants;
                     case "roleprivileges":
                         // How far each role reaches: 1 own records, 2 business unit, 4 parent and child units, 8 organization.
                         var depths = new Dictionary<string, int>
@@ -265,6 +342,13 @@ namespace SecurityToolkit.Tests
                 MasterDetailHarness.Select<UserInfo>(Grids("explain-access")[0], u => u.FullName == "Chen Wei");
                 Until(() => Grids("explain-access")[1].GetVisible<AccessReasonRow>().Any());
                 Capture("explain-access");
+
+                // What can a user do? Chen Wei is a sales manager who also sits in a sales team.
+                Open("user-access-matrix");
+                LoadedWithoutSelection("user-access-matrix");
+                MasterDetailHarness.Select<UserInfo>(Grids("user-access-matrix")[0], u => u.FullName == "Chen Wei");
+                Until(() => Grids("user-access-matrix")[1].GetVisible<MatrixRow>().Any());
+                Capture("user-access-matrix");
 
                 // Cleanup report.
                 Open("cleanup-report");

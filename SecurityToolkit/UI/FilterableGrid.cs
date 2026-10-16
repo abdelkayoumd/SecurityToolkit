@@ -97,6 +97,24 @@ namespace SecurityToolkit.UI
             _grid.RowTemplate.Height = 28;
             _grid.SelectionChanged += (s, e) => SelectionChanged?.Invoke(this, EventArgs.Empty);
             _grid.CellPainting += PaintHeaderCell;
+            _grid.CellFormatting += (s, e) =>
+            {
+                var colour = CellColor;
+                if (colour == null || e.RowIndex < 0 || e.ColumnIndex < 0 || !(e.Value is string text) || text.Length == 0)
+                {
+                    return;
+                }
+
+                var shade = colour(text);
+                if (shade.HasValue)
+                {
+                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                    if (!_grid.Rows[e.RowIndex].Selected)
+                    {
+                        e.CellStyle.BackColor = shade.Value;
+                    }
+                }
+            };
             _grid.ColumnHeaderMouseClick += OnHeaderClick;
 
             // The last control added is laid out first: the search box on top, the footer at the bottom.
@@ -108,6 +126,12 @@ namespace SecurityToolkit.UI
         public event EventHandler SelectionChanged;
 
         public int SelectedCount => _grid.SelectedRows.Count;
+
+        /// <summary>
+        /// Optional: picks a background colour for a cell from its text (null leaves it plain). Cells it colours are
+        /// centred. Selected rows keep the selection colour so the selection stays visible.
+        /// </summary>
+        public Func<string, Color?> CellColor { get; set; }
 
         /// <summary>Binds the grid. <paramref name="columns"/> are "Property=Header" pairs; when given, other properties are hidden.</summary>
         public void SetData<T>(IEnumerable<T> items, params string[] columns)
@@ -159,6 +183,16 @@ namespace SecurityToolkit.UI
         public void ClearSelection()
         {
             _grid.ClearSelection();
+        }
+
+        /// <summary>Gives a column a larger or smaller share of the width than the others (the default is 100). Call after <see cref="SetData{T}"/>.</summary>
+        public void SetColumnWeight(string property, float weight)
+        {
+            var column = _grid.Columns.Cast<DataGridViewColumn>().FirstOrDefault(c => c.DataPropertyName == property);
+            if (column != null)
+            {
+                column.FillWeight = weight;
+            }
         }
 
         /// <summary>Redraws the cells after properties of the listed objects changed in place, keeping the selection.</summary>
@@ -366,11 +400,13 @@ namespace SecurityToolkit.UI
                 g.DrawLine(border, bounds.Left, bounds.Bottom - 1, bounds.Right - 1, bounds.Bottom - 1);
             }
 
+            var sortDirection = column.HeaderCell.SortGlyphDirection;
+            var arrowRoom = sortDirection != SortOrder.None ? SortArrowWidth : 0;
             TextRenderer.DrawText(g, e.FormattedValue?.ToString() ?? string.Empty, Theme.FontBold,
-                new Rectangle(bounds.Left + 4, bounds.Top, Math.Max(0, bounds.Width - FunnelWidth - SortArrowWidth - 4), bounds.Height), Theme.TextPrimary,
+                new Rectangle(bounds.Left + 4, bounds.Top, Math.Max(0, bounds.Width - FunnelWidth - arrowRoom - 4), bounds.Height), Theme.TextPrimary,
                 TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
 
-            var direction = column.HeaderCell.SortGlyphDirection;
+            var direction = sortDirection;
             if (direction != SortOrder.None)
             {
                 var x = bounds.Right - FunnelWidth - SortArrowWidth / 2;
