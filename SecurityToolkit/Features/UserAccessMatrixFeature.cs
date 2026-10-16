@@ -45,7 +45,7 @@ namespace SecurityToolkit.Features
             {
                 // The look of the Dynamics 365 security role editor: an icon and the depth in words in every cell.
                 Grid.BodyCellRenderer = DepthCell.Paint;
-                Grid.RowHeight = 44;
+                Grid.RowHeight = 36;
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
@@ -146,7 +146,7 @@ namespace SecurityToolkit.Features
                     Grid.SetColumnMinimumWidth("Table", 120);
                     foreach (var privilege in new[] { "Create", "Read", "Write", "Delete", "Append", "AppendTo", "Assign", "Share" })
                     {
-                        // Wide enough for an icon and "Business Unit"; the longest label wraps onto a second line.
+                        // Wide enough for an icon and "Business Unit". Longer labels are clipped at the cell edge, as in Dynamics 365.
                         Grid.SetColumnMinimumWidth(privilege, 112);
                     }
 

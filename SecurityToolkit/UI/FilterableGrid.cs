@@ -98,6 +98,14 @@ namespace SecurityToolkit.UI
             _grid.SelectionChanged += (s, e) => SelectionChanged?.Invoke(this, EventArgs.Empty);
             _grid.CellPainting += PaintHeaderCell;
             _grid.CellPainting += PaintBodyCell;
+            _grid.CellToolTipTextNeeded += (s, e) =>
+            {
+                // A custom-drawn cell may clip its text at the cell edge, so the hover tip carries the whole of it.
+                if (BodyCellRenderer != null && e.RowIndex >= 0 && e.ColumnIndex >= 0 && string.IsNullOrEmpty(e.ToolTipText))
+                {
+                    e.ToolTipText = _grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Value as string ?? string.Empty;
+                }
+            };
             _grid.ColumnHeaderMouseClick += OnHeaderClick;
 
             // The last control added is laid out first: the search box on top, the footer at the bottom.

@@ -267,7 +267,7 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void TheLongestLabelWrapsInsideTheCell_RatherThanSpillingIntoTheNextOne()
+        public void TheLongestLabelStaysOnOneLine_AndIsClippedAtTheCellEdge()
         {
             Sta.Run(() =>
             {
@@ -277,7 +277,7 @@ namespace SecurityToolkit.Tests
                     graphics.Clear(Color.White);
                     DepthCell.Paint(graphics, new Rectangle(0, 0, 118, 44), "Parent: Child Business Units", selected: false);
 
-                    // Nothing may be drawn to the right of the 118px cell.
+                    // Nothing may spill into the next cell...
                     for (var x = 118; x < 300; x++)
                     {
                         for (var y = 0; y < 44; y++)
@@ -285,7 +285,67 @@ namespace SecurityToolkit.Tests
                             Assert.Equal(Color.White.ToArgb(), bitmap.GetPixel(x, y).ToArgb());
                         }
                     }
+
+                    // ...and the text is a single line: beside the icon, only the middle band of the cell is inked.
+                    var inked = new List<int>();
+                    for (var y = 0; y < 44; y++)
+                    {
+                        for (var x = 30; x < 118; x++)
+                        {
+                            if (bitmap.GetPixel(x, y).ToArgb() != Color.White.ToArgb()) { inked.Add(y); break; }
+                        }
+                    }
+
+                    Assert.NotEmpty(inked);
+                    Assert.True(inked.Max() - inked.Min() < 18, $"Text spans {inked.Max() - inked.Min() + 1} rows, which is more than one line.");
                 }
+            });
+        }
+
+        [Fact]
+        public void ALongLabelAndAShortOneSitOnTheSameLine()
+        {
+            Sta.Run(() =>
+            {
+                int[] Band(string word)
+                {
+                    using (var bitmap = new Bitmap(300, 36))
+                    using (var graphics = Graphics.FromImage(bitmap))
+                    {
+                        graphics.Clear(Color.White);
+                        DepthCell.Paint(graphics, new Rectangle(0, 0, 118, 36), word, selected: false);
+                        var rows = Enumerable.Range(0, 36).Where(y => Enumerable.Range(30, 88).Any(x => bitmap.GetPixel(x, y).ToArgb() != Color.White.ToArgb())).ToList();
+                        return new[] { rows.Min(), rows.Max() };
+                    }
+                }
+
+                var shortBand = Band("User");
+                var longBand = Band("Parent: Child Business Units");
+
+                Assert.InRange(Math.Abs(longBand[0] - shortBand[0]), 0, 3);
+                Assert.InRange(Math.Abs(longBand[1] - shortBand[1]), 0, 4);
+            });
+        }
+
+        [Fact]
+        public void AClippedLabel_CanStillBeReadInTheHoverTip()
+        {
+            Sta.Run(() =>
+            {
+                var grid = new FilterableGrid { BodyCellRenderer = DepthCell.Paint };
+                var form = new Form { Size = new Size(600, 300) };
+                form.Controls.Add(grid);
+                form.Show();
+                grid.SetData(new List<MatrixRow> { new MatrixRow { Table = "Account", Read = "Parent: Child Business Units" } }, "Table", "Read");
+                var data = (DataGridView)Sta.Find(grid, c => c is DataGridView);
+                var column = data.Columns.Cast<DataGridViewColumn>().First(c => c.DataPropertyName == "Read");
+                var args = (DataGridViewCellToolTipTextNeededEventArgs)Activator.CreateInstance(typeof(DataGridViewCellToolTipTextNeededEventArgs), BindingFlags.NonPublic | BindingFlags.Instance, null, new object[] { column.Index, 0, string.Empty }, null);
+
+                typeof(DataGridView).GetMethod("OnCellToolTipTextNeeded", BindingFlags.NonPublic | BindingFlags.Instance, null,
+                    new[] { typeof(DataGridViewCellToolTipTextNeededEventArgs) }, null).Invoke(data, new object[] { args });
+
+                Assert.Equal("Parent: Child Business Units", args.ToolTipText);
+                form.Dispose();
             });
         }
 
@@ -323,12 +383,12 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void TheMatrixScreen_UsesTheCrmStyleCellsAndTallRows()
+        public void TheMatrixScreen_UsesTheCrmStyleCellsInOrdinaryRows()
         {
             Run((view, users, matrix) =>
             {
                 Assert.NotNull(matrix); // the screen opened with its grids
-                Assert.Equal(44, matrix.RowHeight);
+                Assert.Equal(36, matrix.RowHeight);
             });
         }
 

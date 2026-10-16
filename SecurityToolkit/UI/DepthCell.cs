@@ -57,7 +57,7 @@ namespace SecurityToolkit.UI
 
             var textBounds = new Rectangle(iconBounds.Right + Gap, bounds.Top, Math.Max(0, bounds.Right - iconBounds.Right - Gap - 4), bounds.Height);
             TextRenderer.DrawText(g, text, Theme.FontRegular, textBounds, icon == Icon.None ? Theme.TextSecondary : Theme.TextPrimary,
-                TextFormatFlags.WordBreak | TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding);
+                TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
             return true;
         }
 
