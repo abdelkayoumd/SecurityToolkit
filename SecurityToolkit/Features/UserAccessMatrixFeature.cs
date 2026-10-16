@@ -27,19 +27,6 @@ namespace SecurityToolkit.Features
             return new UserAccessMatrixView(host);
         }
 
-        /// <summary>Wider reach, darker blue.</summary>
-        internal static Color? ShadeOf(string cellText)
-        {
-            switch (cellText)
-            {
-                case "Org": return Color.FromArgb(157, 200, 236);
-                case "P-C BU": return Color.FromArgb(188, 218, 243);
-                case "BU": return Color.FromArgb(214, 232, 248);
-                case "User": return Color.FromArgb(236, 244, 252);
-                default: return null;
-            }
-        }
-
         private sealed class Loaded
         {
             public IReadOnlyList<TableInfo> Tables { get; set; }
@@ -56,14 +43,16 @@ namespace SecurityToolkit.Features
             public UserAccessMatrixView(IFeatureHost host)
                 : base(host, "Users (select one)", "What the user can do: the widest reach across all their roles")
             {
-                Grid.CellColor = ShadeOf;
+                // The look of the Dynamics 365 security role editor: an icon and the depth in words in every cell.
+                Grid.BodyCellRenderer = DepthCell.Paint;
+                Grid.RowHeight = 44;
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
             protected override string PromptText => "Select a user on the left to see what they can do.";
 
             // Nine columns of results need the room more than a list of names does.
-            protected override int MasterWidthPercent => 24;
+            protected override int MasterWidthPercent => 18;
 
             protected override IEnumerable<Control> CreateCommands()
             {
@@ -153,8 +142,15 @@ namespace SecurityToolkit.Features
                 {
                     var rows = AccessMatrixBuilder.Build(graph, user, loaded.Tables, loaded.Catalog, loaded.Grants, includeEmpty);
                     Grid.SetData(rows, "Table", "Create", "Read", "Write", "Delete", "Append", "AppendTo=Append To", "Assign", "Share");
-                    Grid.SetColumnWeight("Table", 170);
-                    InfoLabel.Text = $"{AccessMatrixBuilder.DescribeRoles(graph, user)} {rows.Count} table(s) shown. {AccessMatrixBuilder.Legend}";
+                    Grid.SetColumnWeight("Table", 140);
+                    Grid.SetColumnMinimumWidth("Table", 120);
+                    foreach (var privilege in new[] { "Create", "Read", "Write", "Delete", "Append", "AppendTo", "Assign", "Share" })
+                    {
+                        // Wide enough for an icon and "Business Unit"; the longest label wraps onto a second line.
+                        Grid.SetColumnMinimumWidth(privilege, 112);
+                    }
+
+                    InfoLabel.Text = $"{AccessMatrixBuilder.DescribeRoles(graph, user)} {rows.Count} table(s) shown. A blank cell means the privilege does not exist for that table.";
                 });
             }
         }

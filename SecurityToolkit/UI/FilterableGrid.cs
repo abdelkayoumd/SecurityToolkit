@@ -97,24 +97,7 @@ namespace SecurityToolkit.UI
             _grid.RowTemplate.Height = 28;
             _grid.SelectionChanged += (s, e) => SelectionChanged?.Invoke(this, EventArgs.Empty);
             _grid.CellPainting += PaintHeaderCell;
-            _grid.CellFormatting += (s, e) =>
-            {
-                var colour = CellColor;
-                if (colour == null || e.RowIndex < 0 || e.ColumnIndex < 0 || !(e.Value is string text) || text.Length == 0)
-                {
-                    return;
-                }
-
-                var shade = colour(text);
-                if (shade.HasValue)
-                {
-                    e.CellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
-                    if (!_grid.Rows[e.RowIndex].Selected)
-                    {
-                        e.CellStyle.BackColor = shade.Value;
-                    }
-                }
-            };
+            _grid.CellPainting += PaintBodyCell;
             _grid.ColumnHeaderMouseClick += OnHeaderClick;
 
             // The last control added is laid out first: the search box on top, the footer at the bottom.
@@ -127,11 +110,21 @@ namespace SecurityToolkit.UI
 
         public int SelectedCount => _grid.SelectedRows.Count;
 
+        /// <summary>Draws the content of a body cell. Returns false to leave the cell to the grid's own painting.</summary>
+        public delegate bool CellRenderer(Graphics graphics, Rectangle bounds, string text, bool selected);
+
         /// <summary>
-        /// Optional: picks a background colour for a cell from its text (null leaves it plain). Cells it colours are
-        /// centred. Selected rows keep the selection colour so the selection stays visible.
+        /// Optional: lets a screen draw its cells (an icon and a word, say). The grid paints the cell background,
+        /// selection and borders; the renderer paints what is inside.
         /// </summary>
-        public Func<string, Color?> CellColor { get; set; }
+        public CellRenderer BodyCellRenderer { get; set; }
+
+        /// <summary>Height of each row, in pixels. Set before binding data.</summary>
+        public int RowHeight
+        {
+            get => _grid.RowTemplate.Height;
+            set => _grid.RowTemplate.Height = value;
+        }
 
         /// <summary>Binds the grid. <paramref name="columns"/> are "Property=Header" pairs; when given, other properties are hidden.</summary>
         public void SetData<T>(IEnumerable<T> items, params string[] columns)
@@ -192,6 +185,16 @@ namespace SecurityToolkit.UI
             if (column != null)
             {
                 column.FillWeight = weight;
+            }
+        }
+
+        /// <summary>The narrowest a column may get before the grid scrolls sideways instead. Call after <see cref="SetData{T}"/>.</summary>
+        public void SetColumnMinimumWidth(string property, int pixels)
+        {
+            var column = _grid.Columns.Cast<DataGridViewColumn>().FirstOrDefault(c => c.DataPropertyName == property);
+            if (column != null)
+            {
+                column.MinimumWidth = pixels;
             }
         }
 
@@ -375,6 +378,23 @@ namespace SecurityToolkit.UI
             var left = _grid.GetColumnDisplayRectangle(column.Index, false).Left;
             popup.Show(_grid, new Point(left, HeaderHeight));
             panel.FocusSearch();
+        }
+
+        private void PaintBodyCell(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            var renderer = BodyCellRenderer;
+            if (renderer == null || e.RowIndex < 0 || e.ColumnIndex < 0 || !(e.Value is string text) || text.Length == 0)
+            {
+                return;
+            }
+
+            var selected = (e.State & DataGridViewElementStates.Selected) != 0;
+            e.PaintBackground(e.CellBounds, selected);
+            if (renderer(e.Graphics, e.CellBounds, text, selected))
+            {
+                e.Paint(e.CellBounds, DataGridViewPaintParts.Border);
+                e.Handled = true;
+            }
         }
 
         /// <summary>

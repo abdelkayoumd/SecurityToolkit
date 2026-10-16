@@ -343,12 +343,17 @@ namespace SecurityToolkit.Tests
                 Until(() => Grids("explain-access")[1].GetVisible<AccessReasonRow>().Any());
                 Capture("explain-access");
 
-                // What can a user do? Chen Wei is a sales manager who also sits in a sales team.
+                // What can a user do? Chen Wei is a sales manager who also sits in a sales team. Eight privilege columns
+                // with icons need a wider window than the other screens, so this one is taken on a larger screen.
+                form.ClientSize = new Size(1600, 720);
+                Wait(300);
                 Open("user-access-matrix");
                 LoadedWithoutSelection("user-access-matrix");
                 MasterDetailHarness.Select<UserInfo>(Grids("user-access-matrix")[0], u => u.FullName == "Chen Wei");
                 Until(() => Grids("user-access-matrix")[1].GetVisible<MatrixRow>().Any());
                 Capture("user-access-matrix");
+                form.ClientSize = WindowSize;
+                Wait(300);
 
                 // Cleanup report.
                 Open("cleanup-report");

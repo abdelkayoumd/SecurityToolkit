@@ -128,8 +128,8 @@ namespace SecurityToolkit.Tests
                 var rows = matrix.GetVisible<MatrixRow>();
                 Assert.Equal(new[] { "Account", "Contact" }, rows.Select(r => r.Table)); // Lead has nothing
                 var account = rows.Single(r => r.Table == "Account");
-                Assert.Equal("Org", account.Read);
-                Assert.Equal("Org", account.Delete);
+                Assert.Equal("Organization", account.Read);
+                Assert.Equal("Organization", account.Delete);
                 Assert.Equal(string.Empty, account.Write);
             });
         }
@@ -155,10 +155,10 @@ namespace SecurityToolkit.Tests
                 TeamMembersViewTests.Pump(() => matrix.GetVisible<MatrixRow>().Any());
 
                 var account = matrix.GetVisible<MatrixRow>().Single(r => r.Table == "Account");
-                Assert.Equal("BU", account.Read);   // Seller gives "User", Auditor via the team gives "BU"
-                Assert.Equal(string.Empty, account.Delete);
+                Assert.Equal("Business Unit", account.Read);   // Seller gives "User", Auditor via the team gives "Business Unit"
+                Assert.Equal("None", account.Delete);
                 Assert.NotNull(Info(view, "Bob holds 1 role directly and 1 through teams."));
-                Assert.NotNull(Info(view, "User = own records"));
+                Assert.NotNull(Info(view, "A blank cell means the privilege does not exist"));
             });
         }
 
@@ -205,50 +205,130 @@ namespace SecurityToolkit.Tests
             });
         }
 
-        [Fact]
-        public void TheCellsAreShadedByReach_WiderIsDarker_AndEmptyCellsStayPlain()
-        {
-            var org = UserAccessMatrixFeature.ShadeOf("Org").Value;
-            var parentChild = UserAccessMatrixFeature.ShadeOf("P-C BU").Value;
-            var unit = UserAccessMatrixFeature.ShadeOf("BU").Value;
-            var user = UserAccessMatrixFeature.ShadeOf("User").Value;
 
-            Assert.True(Brightness(org) < Brightness(parentChild));
-            Assert.True(Brightness(parentChild) < Brightness(unit));
-            Assert.True(Brightness(unit) < Brightness(user));
-            Assert.Null(UserAccessMatrixFeature.ShadeOf(string.Empty));
-            Assert.Null(UserAccessMatrixFeature.ShadeOf("Delete"));
+        [Fact]
+        public void TheFiveDepthWordsAreDrawnAsCells_AndAnyOtherTextIsLeftToTheGrid()
+        {
+            foreach (var word in new[] { "None", "User", "Business Unit", "Parent: Child Business Units", "Organization" })
+            {
+                Assert.True(DepthCell.Handles(word), word);
+            }
+
+            foreach (var other in new[] { "Account", string.Empty, "Org", "BU" })
+            {
+                Assert.False(DepthCell.Handles(other), other);
+            }
         }
 
-        private static float Brightness(Color color) => color.GetBrightness();
+        /// <summary>Draws one cell on a white background and reports whether any pixel in the icon area has the given look.</summary>
+        private static bool IconHasPixel(string word, Func<Color, bool> look)
+        {
+            using (var bitmap = new Bitmap(150, 44))
+            using (var graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.Clear(Color.White);
+                Assert.True(DepthCell.Paint(graphics, new Rectangle(0, 0, 150, 44), word, selected: false));
+                for (var x = 4; x < 26; x++)
+                {
+                    for (var y = 0; y < 44; y++)
+                    {
+                        if (look(bitmap.GetPixel(x, y)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
 
         [Fact]
-        public void TheGridAppliesTheShade_ToTheCellsItFormats()
+        public void EachDepthHasItsOwnIconColour_AsInTheDynamicsSecurityRoleEditor()
         {
             Sta.Run(() =>
             {
-                var grid = new FilterableGrid { CellColor = UserAccessMatrixFeature.ShadeOf };
-                var form = new Form { Size = new Size(600, 300) };
+                Assert.True(IconHasPixel("None", c => c.R > 140 && c.G < 90 && c.B < 90), "None: red no-entry sign");
+                Assert.True(IconHasPixel("Organization", c => c.G > 100 && c.R < 80 && c.B < 80), "Organization: green org chart");
+                Assert.True(IconHasPixel("Business Unit", c => c.B > 150 && c.R < 90), "Business Unit: blue people");
+                Assert.True(IconHasPixel("Parent: Child Business Units", c => c.R > 150 && c.G < 110 && c.B < 100), "Parent: Child: red people");
+                Assert.True(IconHasPixel("User", c => Math.Abs(c.R - c.G) < 12 && Math.Abs(c.G - c.B) < 12 && c.R < 140), "User: grey person");
+            });
+        }
+
+        [Fact]
+        public void ADepthThatIsNotNone_IsNotRed_AndNoneIsNotGreen()
+        {
+            Sta.Run(() =>
+            {
+                Assert.False(IconHasPixel("Organization", c => c.R > 140 && c.G < 90 && c.B < 90));
+                Assert.False(IconHasPixel("None", c => c.G > 100 && c.R < 80 && c.B < 80));
+            });
+        }
+
+        [Fact]
+        public void TheLongestLabelWrapsInsideTheCell_RatherThanSpillingIntoTheNextOne()
+        {
+            Sta.Run(() =>
+            {
+                using (var bitmap = new Bitmap(300, 44))
+                using (var graphics = Graphics.FromImage(bitmap))
+                {
+                    graphics.Clear(Color.White);
+                    DepthCell.Paint(graphics, new Rectangle(0, 0, 118, 44), "Parent: Child Business Units", selected: false);
+
+                    // Nothing may be drawn to the right of the 118px cell.
+                    for (var x = 118; x < 300; x++)
+                    {
+                        for (var y = 0; y < 44; y++)
+                        {
+                            Assert.Equal(Color.White.ToArgb(), bitmap.GetPixel(x, y).ToArgb());
+                        }
+                    }
+                }
+            });
+        }
+
+        [Fact]
+        public void TheGridUsesTheRenderer_ForItsBodyCells()
+        {
+            Sta.Run(() =>
+            {
+                var grid = new FilterableGrid { BodyCellRenderer = DepthCell.Paint, RowHeight = 44 };
+                var form = new Form { Size = new Size(700, 300) };
                 form.Controls.Add(grid);
                 form.Show();
-                grid.SetData(new List<MatrixRow> { new MatrixRow { Table = "Account", Read = "Org", Write = string.Empty } }, "Table", "Read", "Write");
-                var data = (DataGridView)Sta.Find(grid, c => c is DataGridView);
-                var format = typeof(DataGridView).GetMethod("OnCellFormatting", BindingFlags.NonPublic | BindingFlags.Instance, null, new[] { typeof(DataGridViewCellFormattingEventArgs) }, null);
+                grid.SetData(new List<MatrixRow> { new MatrixRow { Table = "Account", Read = "Organization" } }, "Table", "Read");
+                Application.DoEvents();
 
-                DataGridViewCellStyle Format(string property, object value)
+                using (var bitmap = new Bitmap(form.ClientSize.Width, form.ClientSize.Height))
                 {
-                    var column = data.Columns.Cast<DataGridViewColumn>().First(c => c.DataPropertyName == property);
-                    var style = new DataGridViewCellStyle();
-                    format.Invoke(data, new object[] { new DataGridViewCellFormattingEventArgs(column.Index, 0, value, typeof(string), style) });
-                    return style;
+                    form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.ClientSize));
+                    var green = false;
+                    for (var x = 0; x < bitmap.Width && !green; x++)
+                    {
+                        for (var y = 0; y < bitmap.Height && !green; y++)
+                        {
+                            var c = bitmap.GetPixel(x, y);
+                            green = c.G > 100 && c.R < 60 && c.B < 60;
+                        }
+                    }
+
+                    Assert.True(green, "The Organization cell's green org-chart icon was not drawn.");
                 }
 
-                var shaded = Format("Read", "Org");
-                Assert.Equal(UserAccessMatrixFeature.ShadeOf("Org").Value, shaded.BackColor);
-                Assert.Equal(DataGridViewContentAlignment.MiddleCenter, shaded.Alignment);
-                Assert.True(Format("Write", string.Empty).BackColor.IsEmpty);
-                Assert.True(Format("Table", "Account").BackColor.IsEmpty);
+                Assert.Equal(44, grid.RowHeight);
                 form.Dispose();
+            });
+        }
+
+        [Fact]
+        public void TheMatrixScreen_UsesTheCrmStyleCellsAndTallRows()
+        {
+            Run((view, users, matrix) =>
+            {
+                Assert.NotNull(matrix); // the screen opened with its grids
+                Assert.Equal(44, matrix.RowHeight);
             });
         }
 

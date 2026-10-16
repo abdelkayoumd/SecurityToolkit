@@ -55,10 +55,10 @@ namespace SecurityToolkit.Tests
             var rows = Build(_o.Ada);
 
             var account = rows.Single(r => r.Table == "Account");
-            Assert.Equal("Org", account.Read);
-            Assert.Equal("Org", account.Delete);
+            Assert.Equal("Organization", account.Read);
+            Assert.Equal("Organization", account.Delete);
             Assert.Equal(string.Empty, account.Write);
-            Assert.Equal("Org", rows.Single(r => r.Table == "Contact").Read);
+            Assert.Equal("Organization", rows.Single(r => r.Table == "Contact").Read);
         }
 
         [Fact]
@@ -67,14 +67,14 @@ namespace SecurityToolkit.Tests
             // Bob: Seller (own records) directly, and Auditor (business unit) through the Reviewers team.
             var account = Build(_o.Bob).Single(r => r.Table == "Account");
 
-            Assert.Equal("BU", account.Read);
-            Assert.Equal(string.Empty, account.Delete);
+            Assert.Equal("Business Unit", account.Read);
+            Assert.Equal("None", account.Delete); // the privilege exists for Account, Bob just has no role granting it
         }
 
         [Fact]
         public void ARoleThroughATeam_CountsLikeADirectOne()
         {
-            Assert.Equal("BU", Build(_o.Bob).Single(r => r.Table == "Contact").Read);
+            Assert.Equal("Business Unit", Build(_o.Bob).Single(r => r.Table == "Contact").Read);
         }
 
         [Fact]
@@ -141,18 +141,50 @@ namespace SecurityToolkit.Tests
 
             var rows = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, catalog, Grants(), false);
 
-            Assert.Equal("Org", Assert.Single(rows).Read);
+            Assert.Equal("Organization", Assert.Single(rows).Read);
         }
 
         [Theory]
         [InlineData((int)PrivilegeDepth.User, "User")]
-        [InlineData((int)PrivilegeDepth.BusinessUnit, "BU")]
-        [InlineData((int)PrivilegeDepth.ParentChildBusinessUnits, "P-C BU")]
-        [InlineData((int)PrivilegeDepth.Organization, "Org")]
-        [InlineData((int)PrivilegeDepth.None, "")]
-        public void TheShortLabels(int depth, string expected)
+        [InlineData((int)PrivilegeDepth.BusinessUnit, "Business Unit")]
+        [InlineData((int)PrivilegeDepth.ParentChildBusinessUnits, "Parent: Child Business Units")]
+        [InlineData((int)PrivilegeDepth.Organization, "Organization")]
+        public void TheCellsUseTheWordsTheSecurityRoleEditorUses(int depth, string expected)
         {
-            Assert.Equal(expected, AccessMatrixBuilder.ShortLabel((PrivilegeDepth)depth));
+            var catalog = new Dictionary<Guid, PrivilegeTarget> { [_accountRead] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Read } };
+            var grants = new Dictionary<Guid, IReadOnlyList<RoleGrant>> { [_o.Admin.Id] = new[] { Grant(_accountRead, (PrivilegeDepth)depth) } };
+
+            var row = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, catalog, grants, false).Single();
+
+            Assert.Equal(expected, row.Read);
+        }
+
+        [Fact]
+        public void APrivilegeThatExistsButIsNotGranted_ShowsNone_WhileOneThatDoesNotExistIsBlank()
+        {
+            // In the test catalog Account has Read and Delete but no Write. Ada's role grants only Read.
+            var catalog = Catalog();
+            var grants = new Dictionary<Guid, IReadOnlyList<RoleGrant>> { [_o.Admin.Id] = new[] { Grant(_accountRead, PrivilegeDepth.Organization) } };
+
+            var account = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, catalog, grants, false).Single(r => r.Table == "Account");
+
+            Assert.Equal("Organization", account.Read);
+            Assert.Equal("None", account.Delete);          // exists for Account, not granted
+            Assert.Equal(string.Empty, account.Write);     // does not exist for Account
+        }
+
+        [Fact]
+        public void ATableWhereEveryCellIsNone_CountsAsNoAccess()
+        {
+            // Ada holds Admin but its grants are on other tables only; Contact has privileges that she lacks.
+            var grants = new Dictionary<Guid, IReadOnlyList<RoleGrant>> { [_o.Admin.Id] = new[] { Grant(_accountRead, PrivilegeDepth.Organization) } };
+
+            var rows = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, Catalog(), grants, includeTablesWithoutAccess: true);
+
+            var contact = rows.Single(r => r.Table == "Contact");
+            Assert.Equal("None", contact.Read);
+            Assert.False(contact.HasAny);
+            Assert.DoesNotContain(AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, Catalog(), grants, false), r => r.Table == "Contact");
         }
 
         [Fact]
@@ -170,7 +202,7 @@ namespace SecurityToolkit.Tests
             var row = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, catalog,
                 new Dictionary<Guid, IReadOnlyList<RoleGrant>> { [_o.Admin.Id] = grants }, false).Single();
 
-            Assert.All(new[] { row.Create, row.Read, row.Write, row.Delete, row.Append, row.AppendTo, row.Assign, row.Share }, c => Assert.Equal("BU", c));
+            Assert.All(new[] { row.Create, row.Read, row.Write, row.Delete, row.Append, row.AppendTo, row.Assign, row.Share }, c => Assert.Equal("Business Unit", c));
         }
     }
 

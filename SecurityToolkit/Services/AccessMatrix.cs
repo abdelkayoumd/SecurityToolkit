@@ -34,7 +34,8 @@ namespace SecurityToolkit.Services
         public string Share { get; set; }
 
         /// <summary>True when the user has at least one of the eight privileges on this table.</summary>
-        public bool HasAny => new[] { Create, Read, Write, Delete, Append, AppendTo, Assign, Share }.Any(c => !string.IsNullOrEmpty(c));
+        public bool HasAny => new[] { Create, Read, Write, Delete, Append, AppendTo, Assign, Share }
+            .Any(c => !string.IsNullOrEmpty(c) && c != AccessMatrixBuilder.None);
     }
 
     /// <summary>
@@ -45,21 +46,11 @@ namespace SecurityToolkit.Services
     {
         private static readonly StringComparer Names = StringComparer.CurrentCultureIgnoreCase;
 
-        /// <summary>Short words for the grid cells.</summary>
-        public static string ShortLabel(PrivilegeDepth depth)
-        {
-            switch (depth)
-            {
-                case PrivilegeDepth.User: return "User";
-                case PrivilegeDepth.BusinessUnit: return "BU";
-                case PrivilegeDepth.ParentChildBusinessUnits: return "P-C BU";
-                case PrivilegeDepth.Organization: return "Org";
-                default: return string.Empty;
-            }
-        }
-
-        /// <summary>What a short label means, for a legend.</summary>
-        public const string Legend = "User = own records · BU = business unit · P-C BU = parent and child units · Org = whole organization.";
+        /// <summary>
+        /// A cell where the privilege exists for the table but the user has no role granting it. (A cell that is blank
+        /// means the privilege does not exist for that table at all, for instance Assign on a table nobody owns.)
+        /// </summary>
+        public const string None = "None";
 
         /// <summary>The ids of every role record the user holds, directly or through a team.</summary>
         public static IReadOnlyList<Guid> RoleIdsOf(SecurityGraph graph, UserInfo user)
@@ -101,11 +92,22 @@ namespace SecurityToolkit.Services
                 }
             }
 
+            // Which privileges exist at all for each table, so "not granted" can be told from "does not exist".
+            var knownPrivileges = new HashSet<(string, PrivilegeKind)>(catalog.Values.Select(t => (t.Table.ToLowerInvariant(), t.Kind)));
+
             var rows = new List<MatrixRow>();
             foreach (var table in tables.OrderBy(t => t.DisplayName, Names))
             {
                 best.TryGetValue(table.LogicalName, out var kinds);
-                string Cell(PrivilegeKind kind) => kinds != null && kinds.TryGetValue(kind, out var depth) ? ShortLabel(depth) : string.Empty;
+                string Cell(PrivilegeKind kind)
+                {
+                    if (kinds != null && kinds.TryGetValue(kind, out var depth))
+                    {
+                        return Privileges.Label(depth);
+                    }
+
+                    return knownPrivileges.Contains((table.LogicalName.ToLowerInvariant(), kind)) ? None : string.Empty;
+                }
 
                 var row = new MatrixRow
                 {
