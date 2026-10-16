@@ -21,6 +21,9 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   (however each user has them) and teams. Differences only by default.
 - **Privilege finder** – pick tables, a privilege (Create, Read, Write, Delete, Append, Append To, Assign,
   Share) and a minimum depth, and see which roles grant it.
+- **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
+  route to it: which role, whether the user holds it directly or through which team, and how far it reaches,
+  with the strongest route marked.
 - **Cleanup report** – six checks for things that look forgotten: active users with no role, disabled users
   still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role.
 - **Assign roles, manage team membership, clone a user** – add or remove security roles for users and teams,
@@ -47,6 +50,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 **Find which roles grant a privilege**
 
 ![Which roles grant Delete on Account](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/privilege-finder.png)
+
+**See why a user has access**
+
+![Why Chen Wei can delete accounts: one direct route and two through teams](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/explain-access.png)
 
 **Spot forgotten users, roles and teams**
 

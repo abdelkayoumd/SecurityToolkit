@@ -256,6 +256,16 @@ namespace SecurityToolkit.Tests
                 Until(() => Grids("privilege-finder")[1].GetVisible<RolePrivilegeRow>().Any());
                 Capture("privilege-finder");
 
+                // Why does a user have access? Chen Wei reaches Account two ways: directly and through two teams.
+                Open("explain-access");
+                LoadedWithoutSelection("explain-access");
+                var explainCombos = FindControls<ComboBox>(views["explain-access"]).OrderBy(c => c.PointToScreen(Point.Empty).X).ToArray();
+                explainCombos[0].SelectedIndex = 3; // Delete
+                explainCombos[1].SelectedIndex = Enumerable.Range(0, explainCombos[1].Items.Count).First(i => explainCombos[1].Items[i].ToString().StartsWith("Account"));
+                MasterDetailHarness.Select<UserInfo>(Grids("explain-access")[0], u => u.FullName == "Chen Wei");
+                Until(() => Grids("explain-access")[1].GetVisible<AccessReasonRow>().Any());
+                Capture("explain-access");
+
                 // Cleanup report.
                 Open("cleanup-report");
                 Until(() => Grids("cleanup-report")[1].GetVisible<CleanupRow>().Any());

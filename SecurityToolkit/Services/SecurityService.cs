@@ -82,6 +82,41 @@ namespace SecurityToolkit.Services
         /// </summary>
         public IReadOnlyList<RolePrivilegeRow> FindRolesWithPrivilege(string table, PrivilegeKind kind, PrivilegeDepth minimum)
         {
+            var grants = GetRoleGrants(table, kind);
+            if (grants.Count == 0)
+            {
+                return new List<RolePrivilegeRow>();
+            }
+
+            var roles = GetRoles().ToDictionary(r => r.Id);
+            var rows = new List<RolePrivilegeRow>();
+            foreach (var grant in grants)
+            {
+                if (!roles.TryGetValue(grant.Key, out var role))
+                {
+                    continue;
+                }
+
+                rows.Add(new RolePrivilegeRow
+                {
+                    Role = role.Name,
+                    BusinessUnit = role.BusinessUnitName,
+                    Depth = Privileges.Label(grant.Value),
+                    DepthLevel = (int)grant.Value
+                });
+            }
+
+            return Privileges.AtLeast(rows, minimum)
+                .OrderBy(r => r.Role, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.BusinessUnit, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>
+        /// For each role record that grants <paramref name="kind"/> on <paramref name="table"/>, how far it reaches.
+        /// A role record is one business unit's copy of a role, which is what a user or team actually holds.
+        /// </summary>
+        public IReadOnlyDictionary<Guid, PrivilegeDepth> GetRoleGrants(string table, PrivilegeKind kind)
+        {
+            var grants = new Dictionary<Guid, PrivilegeDepth>();
             var privilegeQuery = new QueryExpression("privilege")
             {
                 ColumnSet = new ColumnSet("privilegeid"),
@@ -97,7 +132,7 @@ namespace SecurityToolkit.Services
             var privilegeIds = RetrieveAll(privilegeQuery).Select(e => e.Id).Distinct().Cast<object>().ToArray();
             if (privilegeIds.Length == 0)
             {
-                return new List<RolePrivilegeRow>();
+                return grants;
             }
 
             var grantQuery = new QueryExpression("roleprivileges")
@@ -106,27 +141,19 @@ namespace SecurityToolkit.Services
                 Criteria = { Conditions = { new ConditionExpression("privilegeid", ConditionOperator.In, privilegeIds) } }
             };
 
-            var roles = GetRoles().ToDictionary(r => r.Id);
-            var rows = new List<RolePrivilegeRow>();
             foreach (var grant in RetrieveAll(grantQuery))
             {
-                if (!roles.TryGetValue(grant.GetAttributeValue<Guid>("roleid"), out var role))
-                {
-                    continue;
-                }
-
+                var roleId = grant.GetAttributeValue<Guid>("roleid");
                 var depth = Privileges.DepthFromMask(grant.GetAttributeValue<int>("privilegedepthmask"));
-                rows.Add(new RolePrivilegeRow
+
+                // A role can reach the table through more than one privilege record; the widest one counts.
+                if (!grants.TryGetValue(roleId, out var existing) || depth > existing)
                 {
-                    Role = role.Name,
-                    BusinessUnit = role.BusinessUnitName,
-                    Depth = Privileges.Label(depth),
-                    DepthLevel = (int)depth
-                });
+                    grants[roleId] = depth;
+                }
             }
 
-            return Privileges.AtLeast(rows, minimum)
-                .OrderBy(r => r.Role, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.BusinessUnit, StringComparer.CurrentCultureIgnoreCase).ToList();
+            return grants;
         }
 
         public IReadOnlyList<UserInfo> GetUsers()
