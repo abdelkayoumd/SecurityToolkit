@@ -199,13 +199,15 @@ namespace SecurityToolkit.Tests
                         // What each requested role record grants, table by table.
                         var asked = new HashSet<Guid>(q.Criteria.Conditions.First(c => c.AttributeName == "roleid").Values.Cast<Guid>());
                         var roleNames = graph.SelectMany(r => r.Value.Values.Select(copy => new { copy.Id, Name = r.Key })).ToDictionary(x => x.Id, x => x.Name);
+                        var minimum = q.Criteria.Conditions.Where(c => c.AttributeName == "privilegedepthmask" && c.Operator == ConditionOperator.GreaterEqual)
+                            .Select(c => (int)c.Values[0]).DefaultIfEmpty(1).Max();
                         var grants = new EntityCollection();
                         foreach (var roleId in asked.Where(roleNames.ContainsKey))
                         {
                             foreach (var privilege in PrivilegeCatalog())
                             {
                                 var mask = Reach(roleNames[roleId], privilege.Key.Item1, privilege.Key.Item2);
-                                if (mask > 0)
+                                if (mask >= minimum)
                                 {
                                     grants.Entities.Add(new Entity("roleprivileges") { ["roleid"] = roleId, ["privilegeid"] = privilege.Value, ["privilegedepthmask"] = mask });
                                 }
@@ -354,6 +356,11 @@ namespace SecurityToolkit.Tests
                 Capture("user-access-matrix");
                 form.ClientSize = WindowSize;
                 Wait(300);
+
+                // Privileged users: who holds a role that can delete across the whole organization.
+                Open("privileged-users");
+                Until(() => Grids("privileged-users")[1].GetVisible<PrivilegedRow>().Any());
+                Capture("privileged-users");
 
                 // Cleanup report.
                 Open("cleanup-report");

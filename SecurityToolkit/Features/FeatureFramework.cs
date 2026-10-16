@@ -112,6 +112,7 @@ namespace SecurityToolkit.Features
                 new PrivilegeFinderFeature(),
                 new ExplainAccessFeature(),
                 new UserAccessMatrixFeature(),
+                new PrivilegedUsersFeature(),
                 new CleanupReportFeature(),
                 new UserRolesFeature(),
                 new TeamRolesFeature(),

@@ -27,6 +27,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 - **What can a user do?** – pick a user and see every table against the eight privileges, each cell showing how
   far their roles reach (own records, business unit, parent and child units, or the whole organization),
   drawn with the same icons and wording as the Dynamics 365 security role editor. The reverse of Explain access.
+- **Privileged users** – a security review in six checks: which roles can delete across the whole organization
+  (measured by what the role can do, so it works in any language), who holds them directly or through a team,
+  the built-in System Administrators and Customizers, disabled users and service accounts that still hold them,
+  and users who have collected eight or more roles.
 - **Cleanup report** – six checks for things that look forgotten: active users with no role, disabled users
   still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role.
 - **Assign roles, manage team membership, clone a user** – add or remove security roles for users and teams,
@@ -61,6 +65,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 **See everything a user can do**
 
 ![A user's reach per table and privilege, in the style of the Dynamics 365 security role editor](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/user-access-matrix.png)
+
+**Review who holds the most powerful roles**
+
+![The privileged users report](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/privileged-users.png)
 
 **Spot forgotten users, roles and teams**
 

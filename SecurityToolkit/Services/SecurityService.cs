@@ -23,6 +23,8 @@ namespace SecurityToolkit.Services
         private List<TeamInfo> _teams;
         private List<BusinessUnitInfo> _businessUnits;
         private const int RoleChunk = 100;
+        private const int PrivilegeChunk = 500;
+        private OrgDeleteReach _deleteReach;
         private readonly Dictionary<Guid, IReadOnlyList<RoleGrant>> _roleGrants = new Dictionary<Guid, IReadOnlyList<RoleGrant>>();
         private IReadOnlyDictionary<Guid, PrivilegeTarget> _catalog;
         private SecurityGraph _graph;
@@ -44,6 +46,7 @@ namespace SecurityToolkit.Services
             _graph = null;
             _tables = null;
             _catalog = null;
+            _deleteReach = null;
             _roleGrants.Clear();
         }
 
@@ -196,6 +199,71 @@ namespace SecurityToolkit.Services
             }
 
             return wanted.ToDictionary(id => id, id => _roleGrants[id]);
+        }
+
+        /// <summary>
+        /// For each of the given root roles, on how many tables it can delete records across the whole organization.
+        /// Business-unit copies of a role mirror their root role, so only the roots are measured. Large role sets
+        /// are fetched in chunks, and the result is remembered until <see cref="Invalidate"/>.
+        /// </summary>
+        public OrgDeleteReach GetOrganizationDeleteReach(IEnumerable<Guid> rootRoleIds)
+        {
+            if (_deleteReach != null)
+            {
+                return _deleteReach;
+            }
+
+            var deleteTables = GetPrivilegeCatalog().Where(p => p.Value.Kind == PrivilegeKind.Delete).ToDictionary(p => p.Key, p => p.Value.Table);
+            var privilegeIds = deleteTables.Keys.ToList();
+            var tablesByRole = new Dictionary<Guid, HashSet<string>>();
+
+            foreach (var roles in Chunks(rootRoleIds.Distinct().ToList(), RoleChunk))
+            {
+                foreach (var privileges in Chunks(privilegeIds, PrivilegeChunk))
+                {
+                    var query = new QueryExpression("roleprivileges")
+                    {
+                        ColumnSet = new ColumnSet("roleid", "privilegeid"),
+                        Criteria =
+                        {
+                            Conditions =
+                            {
+                                new ConditionExpression("roleid", ConditionOperator.In, roles.Cast<object>().ToArray()),
+                                new ConditionExpression("privilegeid", ConditionOperator.In, privileges.Cast<object>().ToArray()),
+                                // Depth masks are bit flags; Organization is the widest bit, so 8 or more includes it.
+                                new ConditionExpression("privilegedepthmask", ConditionOperator.GreaterEqual, (int)PrivilegeDepth.Organization)
+                            }
+                        }
+                    };
+
+                    foreach (var row in RetrieveAll(query))
+                    {
+                        var roleId = row.GetAttributeValue<Guid>("roleid");
+                        if (!deleteTables.TryGetValue(row.GetAttributeValue<Guid>("privilegeid"), out var table))
+                        {
+                            continue;
+                        }
+
+                        if (!tablesByRole.TryGetValue(roleId, out var tables))
+                        {
+                            tablesByRole[roleId] = tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        }
+
+                        tables.Add(table);
+                    }
+                }
+            }
+
+            var totalTables = deleteTables.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            return _deleteReach = new OrgDeleteReach(tablesByRole.ToDictionary(p => p.Key, p => p.Value.Count), totalTables);
+        }
+
+        private static IEnumerable<List<T>> Chunks<T>(IReadOnlyList<T> items, int size)
+        {
+            for (var offset = 0; offset < items.Count; offset += size)
+            {
+                yield return items.Skip(offset).Take(size).ToList();
+            }
         }
 
         /// <summary>
