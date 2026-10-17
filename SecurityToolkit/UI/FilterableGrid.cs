@@ -34,6 +34,7 @@ namespace SecurityToolkit.UI
         private List<string> _columnOrder = new List<string>();
         private string _signature = string.Empty;
         private ToolStripDropDown _popup;
+        private readonly Label _empty;
 
         public FilterableGrid()
         {
@@ -108,10 +109,44 @@ namespace SecurityToolkit.UI
             };
             _grid.ColumnHeaderMouseClick += OnHeaderClick;
 
+            // What to say in the empty grid, so a blank area never looks like a failure.
+            _empty = new Label
+            {
+                Visible = false,
+                AutoSize = false,
+                Height = 56,
+                Location = new Point(16, HeaderHeight + 16),
+                ForeColor = Theme.TextSecondary,
+                BackColor = Theme.PanelBackground,
+                Font = Theme.FontRegular
+            };
+            _grid.Controls.Add(_empty);
+            _grid.Resize += (s, e) => _empty.Width = Math.Max(0, _grid.Width - 32);
+
             // The last control added is laid out first: the search box on top, the footer at the bottom.
             Controls.Add(_grid);
             Controls.Add(footer);
             Controls.Add(filterHost);
+        }
+
+        /// <summary>Said in the middle of the grid while it has no rows. Overridden by <see cref="EmptyMessageProvider"/> when that is set.</summary>
+        public string EmptyMessage { get; set; }
+
+        /// <summary>Asked each time the grid is empty, so the message can depend on the state of the screen (connected? anything selected?).</summary>
+        public Func<string> EmptyMessageProvider { get; set; }
+
+        /// <summary>Shows or hides the empty-grid message for the rows the grid has now.</summary>
+        public void RefreshEmptyMessage()
+        {
+            UpdateEmptyMessage(_grid.Rows.Count, _filter.Text.Trim().Length > 0 || _valueFilters.Count > 0);
+        }
+
+        private void UpdateEmptyMessage(int rows, bool filtering)
+        {
+            var text = rows > 0 ? null : filtering ? "No records match the search or the filters." : (EmptyMessageProvider?.Invoke() ?? EmptyMessage);
+            _empty.Text = text ?? string.Empty;
+            _empty.Width = Math.Max(0, _grid.Width - 32);
+            _empty.Visible = !string.IsNullOrEmpty(text);
         }
 
         public event EventHandler SelectionChanged;
@@ -342,6 +377,7 @@ namespace SecurityToolkit.UI
 
             _count.Text = filtering ? $"{matches.Count} of {_all.Count} records" : $"{_all.Count} records";
             _clearFilters.Visible = filtering;
+            UpdateEmptyMessage(matches.Count, filtering);
             _grid.Invalidate();
         }
 

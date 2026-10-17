@@ -149,6 +149,7 @@ namespace SecurityToolkit.UI
             {
                 var feature = FindFeature(id);
                 view = feature.CreateView(this);
+                view.FeatureId = id;
                 _views[id] = view;
                 _content.Controls.Add(view);
             }
@@ -189,6 +190,11 @@ namespace SecurityToolkit.UI
         IChangeUi IFeatureHost.CreateChangeUi(IWin32Window owner)
         {
             return new WinFormsChangeUi(owner);
+        }
+
+        void IFeatureHost.Navigate(string featureId)
+        {
+            _rail.Select(featureId);
         }
 
         void IFeatureHost.ShowMessage(BannerKind kind, string message)

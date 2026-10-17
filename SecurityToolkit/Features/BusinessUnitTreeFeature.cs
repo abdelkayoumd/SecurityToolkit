@@ -48,6 +48,7 @@ namespace SecurityToolkit.Features
                     ImageList = _icons
                 };
                 _tree.AfterSelect += (s, e) => ShowContents();
+                Grid.EmptyMessageProvider = () => Host.Security == null ? "Connect to an environment to get started." : "Select a business unit in the tree to see its users, teams and roles.";
 
                 var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
                 layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 46));
@@ -91,6 +92,7 @@ namespace SecurityToolkit.Features
             public override void OnActivated()
             {
                 _activated = true;
+                Grid.RefreshEmptyMessage();
                 if (Graph == null)
                 {
                     AutoLoad();

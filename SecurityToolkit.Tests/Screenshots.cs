@@ -309,6 +309,10 @@ namespace SecurityToolkit.Tests
                     Assert.Equal(0, left.SelectedCount);
                 }
 
+                // Home: the questions people ask, each opening its screen.
+                Open("home");
+                Capture("home");
+
                 // Users and teams: the user list and, for a selected user, the tree of direct and inherited roles.
                 Open("users-and-teams");
                 Click(views["users-and-teams"], "Load users");

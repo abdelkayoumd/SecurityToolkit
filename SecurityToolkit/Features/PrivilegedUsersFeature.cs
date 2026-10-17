@@ -38,6 +38,8 @@ namespace SecurityToolkit.Features
 
             protected override string PromptText => "Every finding is shown. Select a check on the left to see only its findings.";
 
+            protected override string EmptyText => Master.SelectedCount == 0 ? "No findings: nothing to report." : "The selected checks found nothing.";
+
             protected override bool IsLoaded => Graph != null && _reach != null;
 
             protected override IEnumerable<Control> CreateCommands()

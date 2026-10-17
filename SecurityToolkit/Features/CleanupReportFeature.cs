@@ -36,6 +36,8 @@ namespace SecurityToolkit.Features
 
             protected override string PromptText => "Every finding is shown. Select a check on the left to see only its findings.";
 
+            protected override string EmptyText => Master.SelectedCount == 0 ? "No findings: nothing to report." : "The selected checks found nothing.";
+
             protected override IEnumerable<Control> CreateCommands()
             {
                 yield return Command(Theme.GlyphRefresh, "Refresh", () => WithGraph(OnGraphLoaded, refresh: true), strong: true);

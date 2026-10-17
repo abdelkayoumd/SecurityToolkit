@@ -19,6 +19,8 @@ namespace SecurityToolkit.Tests
         public void ShowMessage(BannerKind kind, string message) { }
         public ScriptedUi Ui = new ScriptedUi();
         public IChangeUi CreateChangeUi(System.Windows.Forms.IWin32Window owner) { return Ui; }
+        public List<string> Navigated = new List<string>();
+        public void Navigate(string featureId) { Navigated.Add(featureId); }
     }
 
     internal static class OrgFake

@@ -31,6 +31,7 @@ namespace SecurityToolkit.Tests
 
         public void ShowMessage(BannerKind kind, string message) { }
         public IChangeUi CreateChangeUi(IWin32Window owner) { return Ui; }
+        public void Navigate(string featureId) { }
     }
 
     public class NoConnectionTests

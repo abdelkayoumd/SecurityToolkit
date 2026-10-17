@@ -49,6 +49,9 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   team membership is only changed for plain owner teams (access teams, Entra group teams and default teams are
   managed by Dataverse). Moving a user to another business unit removes all of their roles and cannot be
   undone by the tool, so the review warns about it.
+- **Easy to pick up** – the Home page lists the questions you ask ("Why can this user delete accounts?", "Is
+  anyone over-privileged?") and opens the screen that answers each one. Every screen says in one line what it
+  does, has a "How it works" link with the steps, and tells you what to select while its results area is empty.
 - **Find and filter anything** – every list is searchable, sortable by column title, and filterable by value
   from the funnel in each column header. What you see can be exported to Excel.
 - **Stays in your environment** – it runs on your XrmToolBox connection, reads security records (users, roles,
@@ -56,6 +59,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   anywhere else.
 
 ## Screenshots
+
+**Start from the question you have**
+
+![The Home page: questions that open the screen that answers them](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/home.png)
 
 **Compare two users**
 

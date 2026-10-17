@@ -60,6 +60,8 @@ namespace SecurityToolkit.Features
                 Controls.SetChildIndex(layout, 0);
 
                 InfoLabel.Text = "Load the users, then select some to see their teams and roles.";
+                Grid.EmptyMessage = "Click Load users to list the users. Then select some (Ctrl or Shift for several) to see their teams and roles.";
+                Grid.RefreshEmptyMessage();
 
                 // Selecting rows shows their teams. The short delay lets a drag or Shift-click settle first.
                 _selectionTimer = new Timer { Interval = 200 };

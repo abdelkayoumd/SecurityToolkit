@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
 using SecurityToolkit.Services;
@@ -33,6 +34,70 @@ namespace SecurityToolkit.Features
 
         protected FilterableGrid Grid { get; }
         protected Label InfoLabel { get; }
+
+        private Panel _helpBar;
+
+        /// <summary>
+        /// A line under the command bar saying what this screen does, with a "How it works" link that opens the steps.
+        /// Built once the shell has told the view which feature it is; a feature without guide text shows nothing.
+        /// </summary>
+        protected override void OnFeatureIdChanged()
+        {
+            var entry = FeatureGuide.Find(FeatureId);
+            if (entry == null || _helpBar != null)
+            {
+                return;
+            }
+
+            var steps = string.Join(Environment.NewLine, entry.Steps.Select((s, i) => $"{i + 1}.  {s}"));
+            var details = new Label
+            {
+                Name = "HelpDetails",
+                Dock = DockStyle.Top,
+                Visible = false,
+                Text = steps,
+                ForeColor = Theme.TextPrimary,
+                BackColor = Theme.PanelBackground,
+                Padding = new Padding(12, 8, 12, 8),
+                Height = 24 + 20 * entry.Steps.Sum(s => 1 + s.Length / 150)
+            };
+
+            var toggle = new LinkLabel
+            {
+                Name = "HelpToggle",
+                Text = "? How it works",
+                Dock = DockStyle.Right,
+                Width = 120,
+                TextAlign = ContentAlignment.MiddleCenter,
+                LinkColor = Theme.Accent,
+                Font = Theme.FontSmall
+            };
+            toggle.LinkClicked += (s, e) =>
+            {
+                details.Visible = !details.Visible;
+                toggle.Text = details.Visible ? "Hide" : "? How it works";
+            };
+
+            var summary = new Label
+            {
+                Name = "HelpSummary",
+                Dock = DockStyle.Fill,
+                Text = entry.Summary,
+                ForeColor = Theme.TextSecondary,
+                Font = Theme.FontSmall,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(10, 0, 0, 0),
+                AutoEllipsis = true
+            };
+
+            _helpBar = new Panel { Name = "HelpBar", Dock = DockStyle.Top, Height = 28, BackColor = Theme.PageBackground };
+            _helpBar.Controls.Add(summary);
+            _helpBar.Controls.Add(toggle);
+
+            // The last control added is laid out first, so the bar ends up above the description and the lists.
+            Controls.Add(details);
+            Controls.Add(_helpBar);
+        }
 
         /// <summary>The loaded data, or null until a command has loaded it for the current connection.</summary>
         protected SecurityGraph Graph { get; set; }

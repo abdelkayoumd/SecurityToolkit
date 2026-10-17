@@ -23,6 +23,9 @@ namespace SecurityToolkit.Features
 
         /// <summary>The dialogs a write operation uses to review, report and offer undo. The shell supplies real windows.</summary>
         IChangeUi CreateChangeUi(System.Windows.Forms.IWin32Window owner);
+
+        /// <summary>Opens another screen of the toolkit by its feature id.</summary>
+        void Navigate(string featureId);
     }
 
     /// <summary>The heading a feature sits under in the navigation rail.</summary>
@@ -65,9 +68,25 @@ namespace SecurityToolkit.Features
             Font = Theme.FontRegular;
         }
 
+        private string _featureId;
         private IReadOnlyList<Control> _commands;
 
         protected IFeatureHost Host { get; }
+
+        /// <summary>Which feature this view is, set by the shell when it creates the view. Lets a screen show its own help.</summary>
+        public string FeatureId
+        {
+            get => _featureId;
+            set
+            {
+                _featureId = value;
+                OnFeatureIdChanged();
+            }
+        }
+
+        protected virtual void OnFeatureIdChanged()
+        {
+        }
 
         /// <summary>The buttons this feature puts on the shell's command bar (built once, on first use).</summary>
         public IReadOnlyList<Control> Commands => _commands ?? (_commands = CreateCommands().ToList());

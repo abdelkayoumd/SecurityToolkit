@@ -46,6 +46,8 @@ namespace SecurityToolkit.Features
                 _selectionTimer.Stop();
                 _selectionTimer.Start();
             };
+
+            Grid.EmptyMessageProvider = () => Host.Security == null ? "Connect to an environment to get started." : EmptyText;
         }
 
         /// <summary>How much of the width the list on the left takes, in percent. A screen whose results need room can narrow it.</summary>
@@ -60,9 +62,13 @@ namespace SecurityToolkit.Features
         /// <summary>What to tell the user while nothing is picked yet.</summary>
         protected abstract string PromptText { get; }
 
+        /// <summary>What the results area says while it has no rows: what to do when nothing is picked, or that nothing was found.</summary>
+        protected virtual string EmptyText => Master.SelectedCount == 0 ? PromptText : "Nothing found for this selection.";
+
         public override void OnActivated()
         {
             _activated = true;
+            Grid.RefreshEmptyMessage();
             if (!IsLoaded)
             {
                 AutoLoad();
