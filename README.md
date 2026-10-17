@@ -19,6 +19,8 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   and inherited roles.
 - **Compare users** – pick two users and see the differences side by side: business unit, security roles
   (however each user has them) and teams. Differences only by default.
+- **Compare roles** – pick two security roles and see, table by table and privilege by privilege, what only
+  one of them grants and where one reaches further. Differences only by default.
 - **Privilege finder** – pick tables, a privilege (Create, Read, Write, Delete, Append, Append To, Assign,
   Share) and a minimum depth, and see which roles grant it.
 - **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
@@ -55,6 +57,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 **Compare two users**
 
 ![Comparing two users](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/compare-users.png)
+
+**Compare two security roles**
+
+![Comparing Sales Manager with Salesperson](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/compare-roles.png)
 
 **Find which roles grant a privilege**
 

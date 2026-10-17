@@ -325,6 +325,13 @@ namespace SecurityToolkit.Tests
                 Until(() => Grids("compare-users")[1].GetVisible<CompareRow>().Any());
                 Capture("compare-users");
 
+                // Compare two roles: a manager against a salesperson.
+                Open("compare-roles");
+                LoadedWithoutSelection("compare-roles");
+                MasterDetailHarness.Select<RoleRow>(Grids("compare-roles")[0], r => r.Name == "Sales Manager" || r.Name == "Salesperson");
+                Until(() => Grids("compare-roles")[1].GetVisible<RoleDiffRow>().Any());
+                Capture("compare-roles");
+
                 // Privilege finder.
                 Open("privilege-finder");
                 LoadedWithoutSelection("privilege-finder");
