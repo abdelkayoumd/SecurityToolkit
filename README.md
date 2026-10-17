@@ -19,6 +19,9 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   and inherited roles.
 - **Compare users** – pick two users and see the differences side by side: business unit, security roles
   (however each user has them) and teams. Differences only by default.
+- **Business unit tree** – the business-unit hierarchy as a tree, each unit with how many users and teams it
+  holds (and how many including its children). Select a unit to list its users, its teams and the security
+  roles in use there.
 - **Compare roles** – pick two security roles and see, table by table and privilege by privilege, what only
   one of them grants and where one reaches further. Differences only by default.
 - **Privilege finder** – pick tables, a privilege (Create, Read, Write, Delete, Append, Append To, Assign,
@@ -57,6 +60,10 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
 **Compare two users**
 
 ![Comparing two users](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/compare-users.png)
+
+**Browse the business-unit hierarchy**
+
+![The business unit tree with the contents of a unit](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/business-unit-tree.png)
 
 **Compare two security roles**
 

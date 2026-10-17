@@ -17,6 +17,8 @@ namespace SecurityToolkit.UI
         public const int DirectRolesGroup = 4;
         /// <summary>The "Teams" heading.</summary>
         public const int TeamsGroup = 5;
+        /// <summary>A business unit.</summary>
+        public const int BusinessUnit = 6;
 
         private const int Size = 18;
         private const string UserGlyph = "";
@@ -36,6 +38,7 @@ namespace SecurityToolkit.UI
             list.Images.Add(Draw(RoleGlyph, InheritedColor));
             list.Images.Add(Draw(RoleGlyph, Theme.TextSecondary));
             list.Images.Add(Draw(TeamGlyph, Theme.TextSecondary));
+            list.Images.Add(Draw(Glyphs.Business, Theme.Navy));
             return list;
         }
 

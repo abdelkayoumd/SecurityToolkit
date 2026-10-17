@@ -325,6 +325,15 @@ namespace SecurityToolkit.Tests
                 Until(() => Grids("compare-users")[1].GetVisible<CompareRow>().Any());
                 Capture("compare-users");
 
+                // Business unit tree: the hierarchy with a unit's contents.
+                Open("business-unit-tree");
+                var buTree = FindControls<TreeView>(views["business-unit-tree"]).Single();
+                Until(() => buTree.Nodes.Count > 0);
+                var buNode = buTree.Nodes[0].Nodes.Count > 0 ? buTree.Nodes[0].Nodes[0] : buTree.Nodes[0];
+                buTree.SelectedNode = buNode;
+                Until(() => Grids("business-unit-tree")[0].GetVisible<BusinessUnitItem>().Any());
+                Capture("business-unit-tree");
+
                 // Compare two roles: a manager against a salesperson.
                 Open("compare-roles");
                 LoadedWithoutSelection("compare-roles");

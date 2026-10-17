@@ -110,6 +110,7 @@ namespace SecurityToolkit.Features
                 new CompareRolesFeature(),
                 new UsersByRoleFeature(),
                 new UsersByBusinessUnitFeature(),
+                new BusinessUnitTreeFeature(),
                 new PrivilegeFinderFeature(),
                 new ExplainAccessFeature(),
                 new UserAccessMatrixFeature(),
