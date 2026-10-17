@@ -33,10 +33,13 @@ namespace SecurityToolkit.Features
             private readonly string _question;
             private readonly string _screen;
             private readonly string _summary;
+            private static readonly Font IconFont = new Font("Segoe MDL2 Assets", 16F);
+            private readonly string _glyph;
             private bool _hot;
 
-            public GuideCard(GuideEntry entry, string screenTitle)
+            public GuideCard(GuideEntry entry, string screenTitle, string glyph)
             {
+                _glyph = glyph;
                 _question = entry.Question;
                 _screen = screenTitle;
                 _summary = entry.Summary;
@@ -84,9 +87,12 @@ namespace SecurityToolkit.Features
                 }
 
                 var flags = TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.NoPadding | TextFormatFlags.WordBreak | TextFormatFlags.EndEllipsis;
-                TextRenderer.DrawText(g, _question, Theme.FontBold, new Rectangle(14, 10, Width - 28, 40), Theme.TextPrimary, flags);
-                TextRenderer.DrawText(g, _screen + "  ›", Theme.FontSmall, new Rectangle(14, 34, Width - 28, 16), Theme.Accent, flags);
-                TextRenderer.DrawText(g, _summary, Theme.FontSmall, new Rectangle(14, 54, Width - 28, 44), Theme.TextSecondary, flags);
+                // The screen's own icon, as in the menu, so a card and its menu item are recognisably the same thing.
+                TextRenderer.DrawText(g, _glyph, IconFont, new Rectangle(12, 12, 28, 28), Theme.Accent,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(g, _question, Theme.FontBold, new Rectangle(48, 10, Width - 60, 40), Theme.TextPrimary, flags);
+                TextRenderer.DrawText(g, _screen + "  ›", Theme.FontSmall, new Rectangle(48, 34, Width - 60, 16), Theme.Accent, flags);
+                TextRenderer.DrawText(g, _summary, Theme.FontSmall, new Rectangle(48, 54, Width - 60, 44), Theme.TextSecondary, flags);
             }
         }
 
@@ -136,7 +142,7 @@ namespace SecurityToolkit.Features
                 };
                 var rows = new List<FlowLayoutPanel>();
 
-                var known = FeatureRegistry.CreateAll().ToDictionary(f => f.Id, f => f.Title);
+                var known = FeatureRegistry.CreateAll().ToDictionary(f => f.Id);
                 foreach (var section in Enum.GetValues(typeof(GuideSection)).Cast<GuideSection>())
                 {
                     var entries = FeatureGuide.All.Where(e => e.Section == section && known.ContainsKey(e.FeatureId)).ToList();
@@ -158,7 +164,7 @@ namespace SecurityToolkit.Features
                     var row = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0), WrapContents = true };
                     foreach (var entry in entries)
                     {
-                        var card = new GuideCard(entry, known[entry.FeatureId]);
+                        var card = new GuideCard(entry, known[entry.FeatureId].Title, known[entry.FeatureId].Glyph);
                         var target = entry.FeatureId;
                         card.Click += (s, e) => Host.Navigate(target);
                         row.Controls.Add(card);
