@@ -80,6 +80,8 @@ namespace SecurityToolkit.Features
                 _cmbDepth.SelectedIndex = 0;     // User or wider = any access
                 ShowSentence(null);
 
+                // Depths are drawn as in the Dynamics 365 security role editor: an icon and the depth in words.
+                Grid.BodyCellRenderer = DepthCell.Paint;
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
@@ -231,6 +233,7 @@ namespace SecurityToolkit.Features
                 }, rows =>
                 {
                     Grid.SetData(rows, "Table", "Role", "BusinessUnit=Business Unit", "Depth");
+                    Grid.SetColumnMinimumWidth("Depth", 200);
                     ShowSentence(rows.Count);
                 });
             }

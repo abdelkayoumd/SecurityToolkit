@@ -95,6 +95,8 @@ namespace SecurityToolkit.Features
 
                 // Added last, so it is laid out first and sits above the one-line result.
                 Controls.Add(sentence);
+                // Depths are drawn as in the Dynamics 365 security role editor: an icon and the depth in words.
+                Grid.BodyCellRenderer = DepthCell.Paint;
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
@@ -232,6 +234,7 @@ namespace SecurityToolkit.Features
                     }
 
                     Grid.SetData(rows, "User", "Role", "RoleBusinessUnit=Role's business unit", "Via", "Depth", "Strongest");
+                    Grid.SetColumnMinimumWidth("Depth", 200);
                     InfoLabel.Text = Describe(answers, kind, table.DisplayName);
                 });
             }

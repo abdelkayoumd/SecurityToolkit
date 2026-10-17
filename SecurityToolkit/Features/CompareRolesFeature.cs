@@ -42,6 +42,8 @@ namespace SecurityToolkit.Features
             public CompareRolesView(IFeatureHost host)
                 : base(host, "Roles (Ctrl-click to select two)", "Comparison")
             {
+                // Depths are drawn as in the Dynamics 365 security role editor: an icon and the depth in words.
+                Grid.BodyCellRenderer = DepthCell.Paint;
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
@@ -153,6 +155,8 @@ namespace SecurityToolkit.Features
                 Grid.SetData(rows, "Table", "Privilege", "A=" + names.Item1, "B=" + names.Item2, "Result");
                 Grid.SetColumnWeight("Table", 140);
                 Grid.SetColumnWeight("Privilege", 90);
+                Grid.SetColumnMinimumWidth("A", 200);
+                Grid.SetColumnMinimumWidth("B", 200);
                 Grid.SetColumnWeight("A", 170);
                 Grid.SetColumnWeight("B", 170);
                 Grid.SetColumnWeight("Result", 170);
