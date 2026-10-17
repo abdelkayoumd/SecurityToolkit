@@ -111,7 +111,11 @@ namespace SecurityToolkit.Features
                 }
 
                 var all = Graph.CompareUsers(_first, _second);
-                var rows = _chkDifferences != null && _chkDifferences.Checked ? all.Where(r => r.IsDifference).ToList() : all.ToList();
+                // The business unit is always shown, even when it is the same: with nothing else to compare (two users
+                // with no roles, say) it is still the one fact worth seeing, and an empty grid looks like a failure.
+                var rows = _chkDifferences != null && _chkDifferences.Checked
+                    ? all.Where(r => r.IsDifference || r.Category == "Business unit").ToList()
+                    : all.ToList();
                 var names = SecurityGraph.Labels(_first, _second);
 
                 // The two user columns are headed with the users' own names.
@@ -122,7 +126,9 @@ namespace SecurityToolkit.Features
                 var onlySecond = items.Count(r => r.Result == "Only " + names.Item2);
                 var both = items.Count(r => r.Result == "Both");
                 var businessUnit = all[0].IsDifference ? $"different business units ({all[0].A} / {all[0].B})" : $"same business unit ({all[0].A})";
-                InfoLabel.Text = $"{names.Item1} and {names.Item2}: {businessUnit}; {onlyFirst} only {names.Item1}, {onlySecond} only {names.Item2}, {both} in both";
+                var summary = $"{names.Item1} and {names.Item2}: {businessUnit}; {onlyFirst} only {names.Item1}, {onlySecond} only {names.Item2}, {both} in both";
+                var sameRolesAndTeams = !items.Any(r => r.IsDifference);
+                InfoLabel.Text = sameRolesAndTeams ? summary + ". No security role or team differs." : summary;
             }
         }
     }

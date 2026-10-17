@@ -59,16 +59,53 @@ namespace SecurityToolkit.Tests
             Run((view, grids, org) =>
             {
                 MasterDetailHarness.Select<UserInfo>(grids.Left, u => u.FullName == "Bob" || u.FullName == "Dee");
-                // Bob and Dee are both in Sales, so the business unit line is no difference and is hidden.
+                // Bob and Dee are both in Sales. That line is no difference, but it is always shown; everything else is a difference.
                 TeamMembersViewTests.Pump(() => grids.Right.GetVisible<CompareRow>().Any());
 
-                Assert.DoesNotContain(grids.Right.GetVisible<CompareRow>(), r => r.Category == "Business unit");
-                Assert.All(grids.Right.GetVisible<CompareRow>(), r => Assert.True(r.IsDifference));
+                Assert.Contains(grids.Right.GetVisible<CompareRow>(), r => r.Category == "Business unit" && r.Result == "Same");
+                Assert.All(grids.Right.GetVisible<CompareRow>().Where(r => r.Category != "Business unit"), r => Assert.True(r.IsDifference));
 
                 MasterDetailHarness.Check(view, "Differences only").Checked = false;
 
                 Assert.Contains(grids.Right.GetVisible<CompareRow>(), r => r.Category == "Business unit" && r.Result == "Same");
             });
+        }
+
+        [Fact]
+        public void TwoUsersWithNothingToCompare_StillShowTheirBusinessUnit()
+        {
+            Sta.Run(() =>
+            {
+                var org = new CleanupOrg();
+                var host = new TestHost { Security = new SecurityService(OrgFake.Serve(org.Graph)) };
+                var view = new CompareUsersFeature().CreateView(host);
+                var form = new Form { Size = new System.Drawing.Size(1200, 500) };
+                form.Controls.Add(view);
+                form.Show();
+                Application.DoEvents();
+                _ = view.Commands;
+                view.OnActivated();
+                var grids = new System.Collections.Generic.List<SecurityToolkit.UI.FilterableGrid>();
+                CollectGrids(view, grids);
+                var ordered = grids.OrderBy(g => g.PointToScreen(System.Drawing.Point.Empty).X).ToArray();
+
+                // Ann and Svc have no roles and the same teams: nothing differs, yet the grid is not left empty.
+                MasterDetailHarness.Select<UserInfo>(ordered[0], u => u.FullName == "Ann" || u.FullName == "Svc");
+                TeamMembersViewTests.Pump(() => ordered[1].GetVisible<CompareRow>().Any());
+
+                var row = Assert.Single(ordered[1].GetVisible<CompareRow>());
+                Assert.Equal("Business unit", row.Category);
+                Assert.Equal("Same", row.Result);
+                form.Dispose();
+            });
+        }
+
+        private static void CollectGrids(Control root, System.Collections.Generic.List<SecurityToolkit.UI.FilterableGrid> found)
+        {
+            foreach (Control child in root.Controls)
+            {
+                if (child is SecurityToolkit.UI.FilterableGrid grid) { found.Add(grid); } else { CollectGrids(child, found); }
+            }
         }
 
         [Fact]
