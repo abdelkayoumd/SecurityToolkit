@@ -217,7 +217,9 @@ namespace SecurityToolkit.Features
                 var kind = ((Choice<PrivilegeKind>)_cmbPrivilege.SelectedItem).Value;
                 var graph = Graph;
 
-                Host.RunAsync("Checking access...", security => security.GetRoleGrants(table.LogicalName, kind), grants =>
+                // Only the roles these users hold matter, so only their privileges are read.
+                var roleIds = users.SelectMany(u => AccessMatrixBuilder.RoleIdsOf(graph, u)).Distinct().ToList();
+                Host.RunAsync("Checking access...", security => security.GetRoleGrantsFor(roleIds, table.LogicalName, kind), grants =>
                 {
                     var answers = users.Select(u => AccessExplainer.Explain(graph, u, grants)).ToList();
                     var rows = new List<AccessReasonRow>();

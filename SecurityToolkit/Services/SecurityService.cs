@@ -312,6 +312,43 @@ namespace SecurityToolkit.Services
             return grants;
         }
 
+        /// <summary>
+        /// How far each of the given role records grants <paramref name="kind"/> on <paramref name="table"/>, for the
+        /// ones that grant it at all. Reads only the privileges of those roles (the same data "What can a user do?"
+        /// uses), instead of every grant of the privilege in the whole organization.
+        /// </summary>
+        public IReadOnlyDictionary<Guid, PrivilegeDepth> GetRoleGrantsFor(IEnumerable<Guid> roleIds, string table, PrivilegeKind kind)
+        {
+            var wanted = new HashSet<Guid>(GetPrivilegeCatalog()
+                .Where(p => p.Value.Kind == kind && string.Equals(p.Value.Table, table, StringComparison.OrdinalIgnoreCase))
+                .Select(p => p.Key));
+
+            var grants = new Dictionary<Guid, PrivilegeDepth>();
+            if (wanted.Count == 0)
+            {
+                return grants;
+            }
+
+            foreach (var role in GetRolePrivileges(roleIds))
+            {
+                foreach (var grant in role.Value)
+                {
+                    if (grant.Depth == PrivilegeDepth.None || !wanted.Contains(grant.PrivilegeId))
+                    {
+                        continue;
+                    }
+
+                    // A role can reach the table through more than one privilege record; the widest one counts.
+                    if (!grants.TryGetValue(role.Key, out var existing) || grant.Depth > existing)
+                    {
+                        grants[role.Key] = grant.Depth;
+                    }
+                }
+            }
+
+            return grants;
+        }
+
         public IReadOnlyList<UserInfo> GetUsers()
         {
             return _users ?? (_users = Fetch(new QueryExpression("systemuser")

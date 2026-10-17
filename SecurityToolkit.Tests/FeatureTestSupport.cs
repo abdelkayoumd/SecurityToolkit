@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
 using SecurityToolkit.Features;
+using SecurityToolkit.Models;
 using SecurityToolkit.Services;
 using SecurityToolkit.UI;
 
@@ -124,9 +126,40 @@ namespace SecurityToolkit.Tests
                         }
 
                         break;
+                    case "privilege" when org != null && ((QueryExpression)q).Criteria.Conditions.Count == 0:
+                        // The catalogue: all eight actions on account and contact.
+                        foreach (var table in new[] { "account", "contact" })
+                        {
+                            foreach (PrivilegeKind kind in Enum.GetValues(typeof(PrivilegeKind)))
+                            {
+                                result.Entities.Add(new Entity("privilege", CatalogId(table, kind))
+                                {
+                                    ["accessright"] = Privileges.AccessRight(kind),
+                                    ["otc.objecttypecode"] = new AliasedValue("privilegeobjecttypecodes", "objecttypecode", table)
+                                });
+                            }
+                        }
+
+                        break;
                     case "privilege" when org != null:
                         // Whatever table and access right is asked for, one privilege exists.
                         result.Entities.Add(new Entity("privilege", Guid.NewGuid()));
+                        break;
+                    case "roleprivileges" when org != null && ((QueryExpression)q).Criteria.Conditions.Any(c => c.AttributeName == "roleid"):
+                        // What the asked-for role records grant: every catalogue privilege, as far as the role reaches.
+                        var asked = ((QueryExpression)q).Criteria.Conditions.First(c => c.AttributeName == "roleid").Values.Cast<Guid>().ToList();
+                        var reach = new Dictionary<Guid, int> { [org.Admin.Id] = 8, [org.Auditor.Id] = 2, [org.SellerRoot.Id] = 1 };
+                        foreach (var roleId in asked.Where(reach.ContainsKey))
+                        {
+                            foreach (var table in new[] { "account", "contact" })
+                            {
+                                foreach (PrivilegeKind kind in Enum.GetValues(typeof(PrivilegeKind)))
+                                {
+                                    result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = roleId, ["privilegeid"] = CatalogId(table, kind), ["privilegedepthmask"] = reach[roleId] });
+                                }
+                            }
+                        }
+
                         break;
                     case "roleprivileges" when org != null:
                         // Admin reaches the whole organization, Auditor its business unit, Seller only the user's own records.
@@ -149,6 +182,19 @@ namespace SecurityToolkit.Tests
                 return response;
             };
             return fake;
+        }
+
+        /// <summary>A stable id for the privilege "kind on table", so grants can refer to it.</summary>
+        internal static Guid CatalogId(string table, PrivilegeKind kind)
+        {
+            var bytes = new byte[16];
+            var seed = System.Text.Encoding.UTF8.GetBytes(table + kind);
+            for (var i = 0; i < seed.Length; i++)
+            {
+                bytes[i % 16] ^= seed[i];
+            }
+
+            return new Guid(bytes);
         }
 
         public static TestHost HostFor(Org org)
