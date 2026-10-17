@@ -56,7 +56,7 @@ namespace SecurityToolkit.UI
             _rail = new NavRail();
             foreach (var feature in _features)
             {
-                _rail.AddItem(feature.Id, feature.Glyph, feature.Title, feature.Group);
+                _rail.AddItem(feature.Id, feature.Glyph, feature.Title, feature.Group, FeatureGuide.Find(feature.Id)?.Summary);
             }
 
             _rail.ItemSelected += (s, id) => ShowFeature(id);

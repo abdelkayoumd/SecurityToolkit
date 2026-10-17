@@ -383,6 +383,74 @@ namespace SecurityToolkit.Tests
             });
         }
 
+        private static NavRail TippedRail()
+        {
+            var rail = new NavRail { Dock = DockStyle.None, Height = 600 };
+            rail.AddItem("home", "", "Home");
+            rail.AddItem("a", "", "Users and teams", FeatureGroup.LookUp, "Lists users and their teams and roles.");
+            rail.AddItem("b", "", "Role holders", FeatureGroup.LookUp);
+            return rail;
+        }
+
+        [Fact]
+        public void HoveringAnItem_SaysWhatTheScreenDoes()
+        {
+            Sta.Run(() =>
+            {
+                var rail = TippedRail();
+
+                Assert.Equal("Lists users and their teams and roles.", rail.TipAt(Middle(rail, "Users and teams")));
+            });
+        }
+
+        [Fact]
+        public void AnItemWithoutText_AndAHeading_HaveNoTip()
+        {
+            Sta.Run(() =>
+            {
+                var rail = TippedRail();
+
+                Assert.Equal(string.Empty, rail.TipAt(Middle(rail, "Role holders")));
+                Assert.Equal(string.Empty, rail.TipAt(Middle(rail, "#LOOK UP")));
+            });
+        }
+
+        [Fact]
+        public void WithOnlyTheIconsShowing_TheTipStartsWithTheScreensName()
+        {
+            Sta.Run(() =>
+            {
+                var rail = TippedRail();
+                rail.Expanded = false;
+
+                Assert.StartsWith("Users and teams: Lists users", rail.TipAt(MiddleCollapsed(rail, "Users and teams")));
+                Assert.Equal("Role holders", rail.TipAt(MiddleCollapsed(rail, "Role holders")));
+            });
+        }
+
+        private static Point MiddleCollapsed(NavRail rail, string label)
+        {
+            var y = rail.ContentTop - rail.ScrollOffset;
+            foreach (var row in rail.VisibleRowLabels)
+            {
+                var height = row.StartsWith("#") ? 17 : 36;
+                if (row == label)
+                {
+                    return new Point(20, y + height / 2);
+                }
+
+                y += height;
+            }
+
+            throw new InvalidOperationException("Not shown: " + label);
+        }
+
+        [Fact]
+        public void EveryScreenWithGuideText_CarriesItsSummaryAsTheTip()
+        {
+            Assert.All(FeatureGuide.All, e => Assert.False(string.IsNullOrWhiteSpace(e.Summary)));
+        }
+
         [Fact]
         public void BothModesPaintWithoutError()
         {
