@@ -44,7 +44,6 @@ namespace SecurityToolkit.UI
             public string Id;
             public string Glyph;
             public string Title;
-            public string Tip;
             public FeatureGroup Group;
             public bool IsHeading;
         }
@@ -182,7 +181,7 @@ namespace SecurityToolkit.UI
         }
 
         /// <summary>Adds an item. The first item of each new group (other than Start) gets that group's heading above it.</summary>
-        public void AddItem(string id, string glyph, string title, FeatureGroup group = FeatureGroup.Start, string tip = null)
+        public void AddItem(string id, string glyph, string title, FeatureGroup group = FeatureGroup.Start)
         {
             var last = _rows.LastOrDefault();
             if (group != FeatureGroup.Start && (last == null || last.Group != group))
@@ -190,7 +189,7 @@ namespace SecurityToolkit.UI
                 _rows.Add(new Row { Group = group, IsHeading = true, Title = HeadingText(group) });
             }
 
-            _rows.Add(new Row { Id = id, Glyph = glyph, Title = title, Group = group, Tip = tip });
+            _rows.Add(new Row { Id = id, Glyph = glyph, Title = title, Group = group });
             Invalidate();
         }
 
@@ -306,27 +305,6 @@ namespace SecurityToolkit.UI
             return -1;
         }
 
-        /// <summary>
-        /// What to say when the mouse rests on an item: what the screen does. With only the icons showing, its name goes first,
-        /// since the icon alone does not say which screen it is.
-        /// </summary>
-        private string TipFor(Row row)
-        {
-            if (_expanded)
-            {
-                return row.Tip ?? string.Empty;
-            }
-
-            return string.IsNullOrEmpty(row.Tip) ? row.Title : row.Title + ": " + row.Tip;
-        }
-
-        /// <summary>The hover tip of the item under a point; empty for headings, gaps and items without one.</summary>
-        internal string TipAt(Point point)
-        {
-            var row = RowAt(point);
-            return row >= 0 && !_rows[row].IsHeading ? TipFor(_rows[row]) : string.Empty;
-        }
-
         /// <summary>The id of the item under a point (headings and gaps have none).</summary>
         internal string ItemIdAt(Point point)
         {
@@ -361,7 +339,8 @@ namespace SecurityToolkit.UI
             {
                 _hover = hover;
                 _toggleHover = toggle;
-                _toolTip.SetToolTip(this, hover >= 0 ? TipFor(_rows[hover]) : string.Empty);
+                // Collapsed, only the icons show; say what each one is.
+                _toolTip.SetToolTip(this, !_expanded && hover >= 0 ? _rows[hover].Title : string.Empty);
                 Invalidate();
             }
 
