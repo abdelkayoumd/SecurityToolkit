@@ -151,6 +151,47 @@ namespace SecurityToolkit.Services
             return plan;
         }
 
+        /// <summary>
+        /// Acts on cleanup findings: takes disabled users out of the teams they are still in, and removes the roles
+        /// still assigned to them. Only disabled users are ever touched; the current state is checked again, so a
+        /// finding that is out of date is skipped rather than applied.
+        /// </summary>
+        public static ChangePlan PlanCleanup(SecurityGraph graph, IEnumerable<CleanupRow> findings)
+        {
+            var plan = new ChangePlan();
+            var rows = findings.Where(r => r.UserId.HasValue).ToList();
+            var users = graph.Users.ToDictionary(u => u.Id);
+            var teams = graph.Teams.ToDictionary(t => t.Id);
+
+            foreach (var group in rows.Where(r => r.Check == CleanupChecks.DisabledInTeams && r.TeamId.HasValue).GroupBy(r => r.TeamId.Value))
+            {
+                if (!teams.TryGetValue(group.Key, out var team))
+                {
+                    continue;
+                }
+
+                var disabled = group.Select(r => r.UserId.Value).Distinct().Where(users.ContainsKey).Select(id => users[id]).Where(u => u.IsDisabled).ToList();
+                Merge(plan, PlanMembership(graph, disabled, new[] { team }, false));
+            }
+
+            var roleUsers = rows.Where(r => r.Check == CleanupChecks.DisabledWithRoles).Select(r => r.UserId.Value).Distinct()
+                .Where(users.ContainsKey).Select(id => users[id]).Where(u => u.IsDisabled).ToList();
+            foreach (var user in roleUsers)
+            {
+                var held = graph.DirectRolesOf(user.Id).GroupBy(r => r.RootKey)
+                    .Select(g => new RoleChoice { RootKey = g.Key, Name = g.First().Name, Copies = g.Count() }).ToList();
+                Merge(plan, PlanUserRoles(graph, new[] { user }, held, false));
+            }
+
+            return plan;
+        }
+
+        private static void Merge(ChangePlan into, ChangePlan from)
+        {
+            into.Items.AddRange(from.Items);
+            into.Notes.AddRange(from.Notes);
+        }
+
         /// <summary>Copy business unit, roles and teams from <paramref name="source"/> to each of <paramref name="targets"/>.</summary>
         public static ChangePlan PlanClone(SecurityGraph graph, UserInfo source, IEnumerable<UserInfo> targets, CloneOptions options)
         {

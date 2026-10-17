@@ -32,7 +32,9 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   the built-in System Administrators and Customizers, disabled users and service accounts that still hold them,
   and users who have collected eight or more roles.
 - **Cleanup report** – six checks for things that look forgotten: active users with no role, disabled users
-  still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role.
+  still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role. For disabled
+  users you can act on the findings: take them out of their teams or remove their roles, through the same
+  review, restore file and undo as every other change.
 - **Assign roles, manage team membership, clone a user** – add or remove security roles for users and teams,
   add or remove users from teams, and copy one user's business unit, roles and teams onto others.
 - **Safe changes** – every change is listed for review before anything is sent, with notes on what was

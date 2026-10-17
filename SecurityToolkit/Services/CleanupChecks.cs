@@ -12,6 +12,10 @@ namespace SecurityToolkit.Services
         public string Item { get; set; }
         public string Detail { get; set; }
         public string BusinessUnit { get; set; }
+
+        /// <summary>The user or team the finding is about; not shown, used when acting on it.</summary>
+        public Guid? UserId { get; set; }
+        public Guid? TeamId { get; set; }
     }
 
     /// <summary>One cleanup check and what it found.</summary>
@@ -79,7 +83,7 @@ namespace SecurityToolkit.Services
         {
             var rows = graph.Users.Where(u => u.IsDisabled)
                 .SelectMany(u => graph.TeamsOf(u.Id).Where(t => !t.IsDefault)
-                    .Select(t => new CleanupRow { Check = DisabledInTeams, Item = u.FullName, Detail = $"{t.Name} ({t.TypeName.ToLowerInvariant()} team)", BusinessUnit = u.BusinessUnitName }))
+                    .Select(t => new CleanupRow { Check = DisabledInTeams, Item = u.FullName, Detail = $"{t.Name} ({t.TypeName.ToLowerInvariant()} team)", BusinessUnit = u.BusinessUnitName, UserId = u.Id, TeamId = t.Id }))
                 .OrderBy(r => r.Item, Names).ThenBy(r => r.Detail, Names).ToList();
 
             return new CleanupCheck
@@ -100,7 +104,8 @@ namespace SecurityToolkit.Services
                     Check = DisabledWithRoles,
                     Item = x.User.FullName,
                     Detail = string.Join("; ", x.Roles.Select(r => r.Name)),
-                    BusinessUnit = x.User.BusinessUnitName
+                    BusinessUnit = x.User.BusinessUnitName,
+                    UserId = x.User.Id
                 })
                 .OrderBy(r => r.Item, Names).ToList();
 

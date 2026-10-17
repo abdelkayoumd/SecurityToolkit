@@ -44,6 +44,30 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphClearSelection, "Clear selection", Master.ClearSelection);
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "CleanupReport.xlsx", "Cleanup report"));
+                yield return CommandSeparator();
+                yield return Command(Glyphs.Remove, "Remove disabled users from teams", () => Act(CleanupChecks.DisabledInTeams));
+                yield return Command(Glyphs.Remove, "Remove roles from disabled users", () => Act(CleanupChecks.DisabledWithRoles));
+            }
+
+            /// <summary>
+            /// Acts on the findings of one check: the rows selected on the right if any of them belong to it, otherwise
+            /// all of its findings. Nothing is sent until the user approves the review.
+            /// </summary>
+            private void Act(string check)
+            {
+                Host.EnsureConnection(() =>
+                {
+                    if (Graph == null)
+                    {
+                        Host.CreateChangeUi(this).Tell("Wait for the report to load first.");
+                        return;
+                    }
+
+                    var chosen = Grid.GetSelected<CleanupRow>().Where(r => r.Check == check).ToList();
+                    var findings = chosen.Count > 0 ? chosen : _checks.Where(c => c.Title == check).SelectMany(c => c.Rows).ToList();
+                    var plan = ChangePlanner.PlanCleanup(Graph, findings);
+                    new PlanRunner(Host, Host.CreateChangeUi(this)).Run(plan, () => WithGraph(OnGraphLoaded, refresh: true));
+                });
             }
 
             protected override void Reset()
