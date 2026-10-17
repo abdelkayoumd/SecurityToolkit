@@ -10,26 +10,26 @@ roles and teams, and change security safely, with every change reviewed first an
 
 ## Features
 
-The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modifies security and is marked so.
+The menu on the left is grouped by what you want to do: **Look up**, **Understand access**, **Compare** and **Review** only read, and **Change** modifies security and is marked so (and tinted amber). The groups fold, and a "Find a screen" box filters the menu as you type.
 
 - **Users and teams** – pick users and see a tree of their direct roles and their teams, with the roles each
   team gives them. Green keys are assigned directly, orange keys are inherited from a team.
-- **Team members, Users by role and Users by business unit** – pick teams, roles or business units (with
-  their children if you like) and see who is in them, who holds the role, and each user's teams, direct roles
-  and inherited roles.
-- **Compare users** – pick two users and see the differences side by side: business unit, security roles
+- **Teams and members, Role holders** – pick teams or roles and see who is in them or who holds them, with each
+  user's teams, direct roles and inherited roles.
+- **Business units** – the business-unit hierarchy as a tree, each unit with how many users and teams it holds
+  (and how many including its children). Select a unit and choose what to list: its users with their teams and
+  roles, its teams, or the security roles in use there. Include child units, and export the list or the users in
+  detail.
+- **Two users (compare)** – pick two users and see the differences side by side: business unit, security roles
   (however each user has them) and teams. Differences only by default.
-- **Business unit tree** – the business-unit hierarchy as a tree, each unit with how many users and teams it
-  holds (and how many including its children). Select a unit to list its users, its teams and the security
-  roles in use there.
-- **Compare roles** – pick two security roles and see, table by table and privilege by privilege, what only
+- **Two roles (compare)** – pick two security roles and see, table by table and privilege by privilege, what only
   one of them grants and where one reaches further. Differences only by default.
 - **Privilege finder** – pick tables, a privilege (Create, Read, Write, Delete, Append, Append To, Assign,
   Share) and a minimum depth, and see which roles grant it.
 - **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
   route to it: which role, whether the user holds it directly or through which team, and how far it reaches,
   with the strongest route marked.
-- **What can a user do?** – pick a user and see every table against the eight privileges, each cell showing how
+- **A user's access** ("what can this user do?") – pick a user and see every table against the eight privileges, each cell showing how
   far their roles reach (own records, business unit, parent and child units, or the whole organization),
   drawn with the same icons and wording as the Dynamics 365 security role editor. The reverse of Explain access.
 - **Privileged users** – a security review in six checks: which roles can delete across the whole organization
@@ -40,7 +40,7 @@ The menu on the left has two groups: **EXPLORE** only reads, and **CHANGE** modi
   still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role. For disabled
   users you can act on the findings: take them out of their teams or remove their roles, through the same
   review, restore file and undo as every other change.
-- **Assign roles, manage team membership, clone a user** – add or remove security roles for users and teams,
+- **Roles for users, Roles for teams, Team membership, Clone a user** – add or remove security roles for users and teams,
   add or remove users from teams, and copy one user's business unit, roles and teams onto others.
 - **Safe changes** – every change is listed for review before anything is sent, with notes on what was
   skipped and why. You can save a restore file first, see each change's result, and undo what succeeded. Try

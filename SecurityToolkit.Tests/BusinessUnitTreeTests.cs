@@ -198,16 +198,34 @@ namespace SecurityToolkit.Tests
             });
         }
 
+        private static void Show(FeatureView view, string what)
+        {
+            var combo = view.Commands.OfType<ComboBox>().Single(c => c.Name == "ShowChoice");
+            combo.SelectedItem = what;
+        }
+
         [Fact]
-        public void SelectingAUnit_ListsItsContents_IncludingChildrenByDefault()
+        public void ByDefault_AUnitShowsItsUsers_WithTheirTeamsAndRoles_IncludingChildUnits()
         {
             Run((view, tree, grid) =>
             {
                 tree.SelectedNode = Node(tree, "Sales");
 
-                var names = grid.GetVisible<BusinessUnitItem>().Select(i => i.Name).ToList();
-                Assert.Contains("Bob", names);
-                Assert.Contains("Beta", names); // a child unit's team
+                var bob = grid.GetVisible<UserSummaryRow>().Single(r => r.User == "Bob");
+                Assert.Equal("Seller", bob.DirectRoles);
+                Assert.Equal(new[] { "Bob", "Dee" }, grid.GetVisible<UserSummaryRow>().Select(r => r.User).OrderBy(n => n)); // Cy (Emea) is disabled
+            });
+        }
+
+        [Fact]
+        public void ChildUnitsAndDisabledUsers_AreAddedWhenTicked()
+        {
+            Run((view, tree, grid) =>
+            {
+                tree.SelectedNode = Node(tree, "Sales");
+                view.Commands.OfType<CheckBox>().First(c => c.Text == "Include disabled users").Checked = true;
+
+                Assert.Equal(new[] { "Bob", "Cy", "Dee" }, grid.GetVisible<UserSummaryRow>().Select(r => r.User).OrderBy(n => n));
             });
         }
 
@@ -216,30 +234,85 @@ namespace SecurityToolkit.Tests
         {
             Run((view, tree, grid) =>
             {
-                tree.SelectedNode = Node(tree, "Sales");
-                var box = view.Commands.OfType<CheckBox>().First(c => c.Text == "Include child business units");
+                tree.SelectedNode = Node(tree, "Root");
+                view.Commands.OfType<CheckBox>().First(c => c.Text == "Include disabled users").Checked = true;
+                Assert.Contains(grid.GetVisible<UserSummaryRow>(), r => r.User == "Cy");
 
-                box.Checked = false;
+                view.Commands.OfType<CheckBox>().First(c => c.Text == "Include child business units").Checked = false;
 
-                Assert.DoesNotContain(grid.GetVisible<BusinessUnitItem>(), i => i.Name == "Beta");
+                Assert.Equal(new[] { "Ada" }, grid.GetVisible<UserSummaryRow>().Select(r => r.User));
             });
         }
 
         [Fact]
-        public void TheExportCarriesTheColumnsOfTheList()
+        public void ChoosingTeams_ListsTheTeamsOfTheUnit()
+        {
+            Run((view, tree, grid) =>
+            {
+                tree.SelectedNode = Node(tree, "Sales");
+
+                Show(view, "Teams");
+
+                Assert.Equal(new[] { "Beta" }, grid.GetVisible<BusinessUnitItem>().Select(i => i.Name)); // the default team is not listed
+                Assert.Equal(new[] { "Team", "Business Unit", "Detail" }, grid.GetTable().Key);
+            });
+        }
+
+        [Fact]
+        public void ChoosingRolesInUse_ListsTheRolesHeldInTheUnit()
+        {
+            Run((view, tree, grid) =>
+            {
+                tree.SelectedNode = Node(tree, "Sales");
+
+                Show(view, "Roles in use");
+
+                var seller = Assert.Single(grid.GetVisible<BusinessUnitItem>());
+                Assert.Equal("Seller", seller.Name);
+                Assert.Equal(new[] { "Role", "Detail", "Kind" }, grid.GetTable().Key);
+            });
+        }
+
+        [Fact]
+        public void TheUsersExport_HasTheUsersColumns()
         {
             Run((view, tree, grid) =>
             {
                 tree.SelectedNode = Node(tree, "Root");
 
-                Assert.Equal(new[] { "Type", "Name", "Business Unit", "Detail", "Status" }, grid.GetTable().Key);
+                Assert.Equal(new[] { "User", "Business Unit", "Teams", "Direct roles", "Roles from teams", "Status" }, grid.GetTable().Key);
             });
         }
 
         [Fact]
-        public void ItIsListedUnderExplore_AndRegistered()
+        public void TheSummaryLine_CountsUsersTeamsAndRoles()
         {
-            Assert.Equal(FeatureGroup.Explore, new BusinessUnitTreeFeature().Group);
+            Run((view, tree, grid) =>
+            {
+                tree.SelectedNode = Node(tree, "Sales");
+
+                var info = ((System.Windows.Forms.Label)Sta.Find(view, c => c is System.Windows.Forms.Label l && l.Text.Contains("role(s) in use"))).Text;
+                Assert.Contains("2 user(s), 1 team(s), 1 role(s) in use", info);
+            });
+        }
+
+        [Fact]
+        public void TheOldUsersByBusinessUnitScreen_IsGone_AndItsJobIsHere()
+        {
+            Assert.DoesNotContain(FeatureRegistry.CreateAll(), f => f.Id == "users-by-business-unit");
+            Assert.Contains(view_commandsOfUsers(), t => t == "Export users in detail");
+        }
+
+        private static IEnumerable<string> view_commandsOfUsers()
+        {
+            var view = new BusinessUnitTreeFeature().CreateView(new TestHost());
+            return view.Commands.OfType<CommandButton>().Select(b => b.Text);
+        }
+
+        [Fact]
+        public void ItIsListedUnderItsGroup_AndRegistered()
+        {
+            Assert.Equal(FeatureGroup.LookUp, new BusinessUnitTreeFeature().Group);
             Assert.Contains(FeatureRegistry.CreateAll(), f => f is BusinessUnitTreeFeature);
         }
     }

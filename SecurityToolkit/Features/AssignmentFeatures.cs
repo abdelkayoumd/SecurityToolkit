@@ -12,10 +12,10 @@ namespace SecurityToolkit.Features
     internal sealed class UserRolesFeature : IFeature
     {
         public string Id => "assign-user-roles";
-        public string Title => "Assign roles to users";
+        public string Title => "Roles for users";
         public string Glyph => Glyphs.AddPerson;
         public FeatureGroup Group => FeatureGroup.Change;
-        public int Order => 60;
+        public int Order => 10;
 
         public FeatureView CreateView(IFeatureHost host)
         {
@@ -73,10 +73,10 @@ namespace SecurityToolkit.Features
     internal sealed class TeamRolesFeature : IFeature
     {
         public string Id => "assign-team-roles";
-        public string Title => "Assign roles to teams";
-        public string Glyph => Glyphs.Security;
+        public string Title => "Roles for teams";
+        public string Glyph => Glyphs.TeamShield;
         public FeatureGroup Group => FeatureGroup.Change;
-        public int Order => 70;
+        public int Order => 20;
 
         public FeatureView CreateView(IFeatureHost host)
         {
@@ -125,10 +125,10 @@ namespace SecurityToolkit.Features
     internal sealed class TeamMembershipFeature : IFeature
     {
         public string Id => "assign-team-membership";
-        public string Title => "Manage team membership";
+        public string Title => "Team membership";
         public string Glyph => Glyphs.Swap;
         public FeatureGroup Group => FeatureGroup.Change;
-        public int Order => 80;
+        public int Order => 30;
 
         public FeatureView CreateView(IFeatureHost host)
         {

@@ -168,12 +168,13 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void ItIsListedUnderExplore_BesideThePrivilegeFinder()
+        public void ItIsListedUnderItsGroup_BetweenTheMatrixAndThePrivilegeFinder()
         {
             var ids = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
 
-            Assert.Equal(FeatureGroup.Explore, new ExplainAccessFeature().Group);
-            Assert.Equal(ids.IndexOf("privilege-finder") + 1, ids.IndexOf("explain-access"));
+            Assert.Equal(FeatureGroup.UnderstandAccess, new ExplainAccessFeature().Group);
+            Assert.Equal(ids.IndexOf("user-access-matrix") + 1, ids.IndexOf("explain-access"));
+            Assert.Equal(ids.IndexOf("explain-access") + 1, ids.IndexOf("privilege-finder"));
         }
     }
 }

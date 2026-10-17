@@ -34,8 +34,17 @@ namespace SecurityToolkit.Features
         /// <summary>The landing page, above any heading.</summary>
         Start,
 
-        /// <summary>Read-only features: look things up, export.</summary>
-        Explore,
+        /// <summary>Read-only: find out who and what is in the organization.</summary>
+        LookUp,
+
+        /// <summary>Read-only: why a user has access, and what they can do.</summary>
+        UnderstandAccess,
+
+        /// <summary>Read-only: two users or two roles side by side.</summary>
+        Compare,
+
+        /// <summary>Read-only: security health checks.</summary>
+        Review,
 
         /// <summary>Features that modify security in the organization.</summary>
         Change
@@ -128,7 +137,6 @@ namespace SecurityToolkit.Features
                 new CompareUsersFeature(),
                 new CompareRolesFeature(),
                 new UsersByRoleFeature(),
-                new UsersByBusinessUnitFeature(),
                 new BusinessUnitTreeFeature(),
                 new PrivilegeFinderFeature(),
                 new ExplainAccessFeature(),

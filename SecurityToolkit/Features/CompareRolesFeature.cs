@@ -15,10 +15,10 @@ namespace SecurityToolkit.Features
     internal sealed class CompareRolesFeature : IFeature
     {
         public string Id => "compare-roles";
-        public string Title => "Compare roles";
-        public string Glyph => Glyphs.Compare;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 26;
+        public string Title => "Two roles";
+        public string Glyph => Glyphs.CompareRoles;
+        public FeatureGroup Group => FeatureGroup.Compare;
+        public int Order => 20;
 
         public FeatureView CreateView(IFeatureHost host)
         {

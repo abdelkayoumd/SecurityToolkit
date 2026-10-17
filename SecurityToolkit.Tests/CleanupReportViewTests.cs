@@ -124,9 +124,9 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void ItIsListedUnderExplore()
+        public void ItIsListedUnderItsGroup()
         {
-            Assert.Equal(FeatureGroup.Explore, new CleanupReportFeature().Group);
+            Assert.Equal(FeatureGroup.Review, new CleanupReportFeature().Group);
         }
     }
 }

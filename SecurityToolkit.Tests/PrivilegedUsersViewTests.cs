@@ -126,9 +126,9 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void ItIsListedUnderExplore()
+        public void ItIsListedUnderItsGroup()
         {
-            Assert.Equal(FeatureGroup.Explore, new PrivilegedUsersFeature().Group);
+            Assert.Equal(FeatureGroup.Review, new PrivilegedUsersFeature().Group);
             Assert.Contains(FeatureRegistry.CreateAll(), f => f is PrivilegedUsersFeature);
         }
     }

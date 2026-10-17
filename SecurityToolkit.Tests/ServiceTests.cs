@@ -175,7 +175,7 @@ namespace SecurityToolkit.Tests
     {
         private sealed class Stub : IFeature
         {
-            public Stub(string id, int order, string title = null, FeatureGroup group = FeatureGroup.Explore) { Id = id; Order = order; Title = title ?? id; Group = group; }
+            public Stub(string id, int order, string title = null, FeatureGroup group = FeatureGroup.LookUp) { Id = id; Order = order; Title = title ?? id; Group = group; }
             public string Id { get; }
             public string Title { get; }
             public string Glyph => "";
@@ -197,15 +197,15 @@ namespace SecurityToolkit.Tests
             var ordered = FeatureRegistry.Order(new IFeature[]
             {
                 new Stub("change1", 1, group: FeatureGroup.Change),
-                new Stub("explore9", 9, group: FeatureGroup.Explore),
+                new Stub("explore9", 9, group: FeatureGroup.LookUp),
                 new Stub("home", 50, group: FeatureGroup.Start),
-                new Stub("explore2", 2, group: FeatureGroup.Explore)
+                new Stub("explore2", 2, group: FeatureGroup.LookUp)
             });
             Assert.Equal(new[] { "home", "explore2", "explore9", "change1" }, ordered.Select(f => f.Id));
         }
 
         [Fact]
-        public void EveryFeatureThatChangesSecurity_IsUnderChange_AndEveryReadOnlyOneUnderExplore()
+        public void EveryFeatureThatChangesSecurity_IsUnderChange_AndEveryReadOnlyOneUnderItsOwnGroup()
         {
             var all = FeatureRegistry.CreateAll().ToDictionary(f => f.Id, f => f.Group);
 
@@ -215,10 +215,19 @@ namespace SecurityToolkit.Tests
                 Assert.Equal(FeatureGroup.Change, all[id]);
             }
 
-            foreach (var id in new[] { "users-and-teams", "team-members", "users-by-role", "users-by-business-unit", "privilege-finder" })
+            var expected = new Dictionary<string, FeatureGroup>
             {
-                Assert.Equal(FeatureGroup.Explore, all[id]);
+                ["users-and-teams"] = FeatureGroup.LookUp, ["team-members"] = FeatureGroup.LookUp, ["users-by-role"] = FeatureGroup.LookUp, ["business-unit-tree"] = FeatureGroup.LookUp,
+                ["user-access-matrix"] = FeatureGroup.UnderstandAccess, ["explain-access"] = FeatureGroup.UnderstandAccess, ["privilege-finder"] = FeatureGroup.UnderstandAccess,
+                ["compare-users"] = FeatureGroup.Compare, ["compare-roles"] = FeatureGroup.Compare,
+                ["privileged-users"] = FeatureGroup.Review, ["cleanup-report"] = FeatureGroup.Review
+            };
+            foreach (var pair in expected)
+            {
+                Assert.Equal(pair.Value, all[pair.Key]);
             }
+
+            Assert.DoesNotContain("users-by-business-unit", all.Keys);
         }
 
         [Fact]

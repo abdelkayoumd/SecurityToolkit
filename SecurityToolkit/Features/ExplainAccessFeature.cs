@@ -20,8 +20,8 @@ namespace SecurityToolkit.Features
         public string Id => "explain-access";
         public string Title => "Explain access";
         public string Glyph => Glyphs.Help;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 52;
+        public FeatureGroup Group => FeatureGroup.UnderstandAccess;
+        public int Order => 20;
 
         public FeatureView CreateView(IFeatureHost host)
         {

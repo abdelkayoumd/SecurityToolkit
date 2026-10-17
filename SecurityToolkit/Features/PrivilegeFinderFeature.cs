@@ -20,8 +20,8 @@ namespace SecurityToolkit.Features
         public string Id => "privilege-finder";
         public string Title => "Privilege finder";
         public string Glyph => Glyphs.Lock;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 50;
+        public FeatureGroup Group => FeatureGroup.UnderstandAccess;
+        public int Order => 30;
 
         public FeatureView CreateView(IFeatureHost host)
         {

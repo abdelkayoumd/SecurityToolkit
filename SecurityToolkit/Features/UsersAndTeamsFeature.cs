@@ -16,7 +16,7 @@ namespace SecurityToolkit.Features
         public string Id => "users-and-teams";
         public string Title => "Users and teams";
         public string Glyph => Glyphs.People;
-        public FeatureGroup Group => FeatureGroup.Explore;
+        public FeatureGroup Group => FeatureGroup.LookUp;
         public int Order => 10;
 
         public FeatureView CreateView(IFeatureHost host)

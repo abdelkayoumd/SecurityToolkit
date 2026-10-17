@@ -6,7 +6,7 @@ namespace SecurityToolkit.Features
     /// <summary>The heading a guide entry is listed under on the Home page.</summary>
     internal enum GuideSection
     {
-        FindOut,
+        LookUp,
         UnderstandAccess,
         Compare,
         Review,
@@ -41,38 +41,31 @@ namespace SecurityToolkit.Features
         {
             new GuideEntry
             {
-                FeatureId = "users-and-teams", Section = GuideSection.FindOut,
+                FeatureId = "users-and-teams", Section = GuideSection.LookUp,
                 Question = "What teams and roles does this person have?",
                 Summary = "Lists users; for the ones you select, shows their teams and every role, direct or inherited from a team.",
                 Steps = new[] { "Click Load users.", "Select one or more users (Ctrl or Shift for several).", "Their direct roles and teams appear on the right. A team's roles are the ones the user inherits from it." }
             },
             new GuideEntry
             {
-                FeatureId = "users-by-role", Section = GuideSection.FindOut,
+                FeatureId = "users-by-role", Section = GuideSection.LookUp,
                 Question = "Who holds this security role?",
                 Summary = "Pick roles and see every user who has them, directly or through a team.",
                 Steps = new[] { "Select one or more roles on the left.", "The users who hold them appear on the right, with how they hold each role.", "Export to Excel to keep the list." }
             },
             new GuideEntry
             {
-                FeatureId = "team-members", Section = GuideSection.FindOut,
+                FeatureId = "team-members", Section = GuideSection.LookUp,
                 Question = "Who is in this team?",
                 Summary = "Pick teams and see their members.",
                 Steps = new[] { "Select one or more teams on the left.", "Their members appear on the right.", "Export to Excel to keep the list." }
             },
             new GuideEntry
             {
-                FeatureId = "users-by-business-unit", Section = GuideSection.FindOut,
+                FeatureId = "business-unit-tree", Section = GuideSection.LookUp,
                 Question = "Who is in this business unit?",
-                Summary = "Pick business units and see their users with their teams and roles.",
-                Steps = new[] { "Select one or more business units on the left.", "Tick Include child business units to take the units below them as well.", "Export the summary, or the detailed list with one row per team and role." }
-            },
-            new GuideEntry
-            {
-                FeatureId = "business-unit-tree", Section = GuideSection.FindOut,
-                Question = "How is my business-unit hierarchy laid out?",
-                Summary = "The business units as a tree with how many users and teams each holds.",
-                Steps = new[] { "Read the tree: each unit shows its users and teams.", "Select a unit to list its users, teams and the roles in use there.", "Untick Include child business units to see only that unit." }
+                Summary = "The business units as a tree. Select one to see its users, teams or the roles in use there.",
+                Steps = new[] { "Read the tree: each unit shows how many users and teams it holds.", "Select a unit, then choose what to list: Users (with their teams and roles), Teams, or Roles in use.", "Tick Include child business units to take the units below it as well. Export the list, or the users in detail." }
             },
             new GuideEntry
             {
@@ -162,7 +155,7 @@ namespace SecurityToolkit.Features
         {
             switch (section)
             {
-                case GuideSection.FindOut: return "Find out who has what";
+                case GuideSection.LookUp: return "Look up";
                 case GuideSection.UnderstandAccess: return "Understand access";
                 case GuideSection.Compare: return "Compare";
                 case GuideSection.Review: return "Review";

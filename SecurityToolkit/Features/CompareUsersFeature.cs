@@ -15,10 +15,10 @@ namespace SecurityToolkit.Features
     internal sealed class CompareUsersFeature : IFeature
     {
         public string Id => "compare-users";
-        public string Title => "Compare users";
+        public string Title => "Two users";
         public string Glyph => Glyphs.Compare;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 25;
+        public FeatureGroup Group => FeatureGroup.Compare;
+        public int Order => 10;
 
         public FeatureView CreateView(IFeatureHost host)
         {

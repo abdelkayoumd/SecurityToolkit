@@ -17,10 +17,10 @@ namespace SecurityToolkit.Features
     internal sealed class UserAccessMatrixFeature : IFeature
     {
         public string Id => "user-access-matrix";
-        public string Title => "What can a user do?";
+        public string Title => "A user's access";
         public string Glyph => Glyphs.Grid;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 53;
+        public FeatureGroup Group => FeatureGroup.UnderstandAccess;
+        public int Order => 10;
 
         public FeatureView CreateView(IFeatureHost host)
         {

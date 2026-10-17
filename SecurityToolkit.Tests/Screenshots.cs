@@ -335,7 +335,7 @@ namespace SecurityToolkit.Tests
                 Until(() => buTree.Nodes.Count > 0);
                 var buNode = buTree.Nodes[0].Nodes.Count > 0 ? buTree.Nodes[0].Nodes[0] : buTree.Nodes[0];
                 buTree.SelectedNode = buNode;
-                Until(() => Grids("business-unit-tree")[0].GetVisible<BusinessUnitItem>().Any());
+                Until(() => Grids("business-unit-tree")[0].GetVisible<UserSummaryRow>().Any());
                 Capture("business-unit-tree");
 
                 // Compare two roles: a manager against a salesperson.

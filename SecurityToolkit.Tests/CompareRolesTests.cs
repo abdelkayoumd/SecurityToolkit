@@ -272,9 +272,9 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void ItIsListedUnderExplore_AndRegistered()
+        public void ItIsListedUnderItsGroup_AndRegistered()
         {
-            Assert.Equal(FeatureGroup.Explore, new CompareRolesFeature().Group);
+            Assert.Equal(FeatureGroup.Compare, new CompareRolesFeature().Group);
             Assert.Contains(FeatureRegistry.CreateAll(), f => f is CompareRolesFeature);
         }
     }

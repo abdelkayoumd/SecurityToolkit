@@ -132,65 +132,6 @@ namespace SecurityToolkit.Tests
         }
     }
 
-    public class UsersByBusinessUnitViewTests
-    {
-        private static void Run(Action<FeatureView, FilterableGrid, FilterableGrid, Org> test)
-        {
-            MasterDetailHarness.Run(new UsersByBusinessUnitFeature(), test);
-        }
-
-        [Fact]
-        public void OpeningTheFeature_ListsBusinessUnitsByPathSoChildrenFollowTheirParent()
-        {
-            Run((view, master, detail, org) =>
-            {
-                Assert.Equal(new[] { "Root", "Root / Sales", "Root / Sales / Emea" }, master.GetVisible<BusinessUnitRow>().Select(b => b.Path));
-            });
-        }
-
-        [Fact]
-        public void SelectingABusinessUnit_ShowsItsUsersWithDirectAndInheritedRoles()
-        {
-            Run((view, master, detail, org) =>
-            {
-                MasterDetailHarness.Select<BusinessUnitRow>(master, b => b.Name == "Sales");
-                TeamMembersViewTests.Pump(() => detail.GetVisible<UserSummaryRow>().Any());
-
-                var bob = detail.GetVisible<UserSummaryRow>().Single(r => r.User == "Bob");
-                Assert.Equal("Seller", bob.DirectRoles);
-                Assert.Equal("Auditor (Reviewers)", bob.TeamRoles);
-                Assert.Equal(new[] { "Bob", "Dee" }, detail.GetVisible<UserSummaryRow>().Select(r => r.User).OrderBy(n => n));
-            });
-        }
-
-        [Fact]
-        public void IncludeChildBusinessUnits_AddsTheirUsers()
-        {
-            Run((view, master, detail, org) =>
-            {
-                MasterDetailHarness.Select<BusinessUnitRow>(master, b => b.Name == "Sales");
-                TeamMembersViewTests.Pump(() => detail.GetVisible<UserSummaryRow>().Any());
-
-                MasterDetailHarness.Check(view, "Include child business units").Checked = true;
-                MasterDetailHarness.Check(view, "Include disabled users").Checked = true; // Cy (Emea) is disabled
-
-                Assert.Equal(new[] { "Bob", "Cy", "Dee" }, detail.GetVisible<UserSummaryRow>().Select(r => r.User).OrderBy(n => n));
-            });
-        }
-
-        [Fact]
-        public void SelectingSeveralBusinessUnits_CombinesTheirUsers()
-        {
-            Run((view, master, detail, org) =>
-            {
-                MasterDetailHarness.Select<BusinessUnitRow>(master, b => b.Name == "Root" || b.Name == "Sales");
-                TeamMembersViewTests.Pump(() => detail.GetVisible<UserSummaryRow>().Count() == 3);
-
-                Assert.Equal(new[] { "Ada", "Bob", "Dee" }, detail.GetVisible<UserSummaryRow>().Select(r => r.User).OrderBy(n => n));
-            });
-        }
-    }
-
     public class PrivilegeFinderViewTests
     {
         private static void Run(Action<FeatureView, FilterableGrid, FilterableGrid, Org> test, bool connected = true)

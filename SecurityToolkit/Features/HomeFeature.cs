@@ -114,7 +114,7 @@ namespace SecurityToolkit.Features
                 header.Controls.Add(new Label
                 {
                     Text = "Pick the question you want answered, or choose a screen from the menu on the left. " +
-                           "The screens under EXPLORE only read. Nothing is changed unless you use a screen under CHANGE, and every change is reviewed first.",
+                           "Every screen except those under CHANGE only reads. Nothing is changed unless you use a Change screen, and every change is reviewed first.",
                     ForeColor = Theme.TextSecondary,
                     AutoSize = false,
                     Size = new Size(900, 40),

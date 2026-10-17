@@ -9,15 +9,16 @@ namespace SecurityToolkit.Features
 {
     /// <summary>
     /// The business-unit hierarchy as a tree, each unit with how many users and teams it holds. Select a unit and the
-    /// right lists what is in it: its users, its teams, and the security roles in use there. Read-only.
+    /// right lists what is in it, as you choose: its users (with their teams and roles), its teams, or the security
+    /// roles in use there. Read-only.
     /// </summary>
     internal sealed class BusinessUnitTreeFeature : IFeature
     {
         public string Id => "business-unit-tree";
-        public string Title => "Business unit tree";
+        public string Title => "Business units";
         public string Glyph => Glyphs.Business;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 45;
+        public FeatureGroup Group => FeatureGroup.LookUp;
+        public int Order => 40;
 
         public FeatureView CreateView(IFeatureHost host)
         {
@@ -31,6 +32,8 @@ namespace SecurityToolkit.Features
             private bool _activated;
             private CheckBox _chkChildren;
             private CheckBox _chkDisabled;
+            private ComboBox _cmbShow;
+            private List<UserAccessRow> _detail = new List<UserAccessRow>();
 
             public BusinessUnitTreeView(IFeatureHost host) : base(host)
             {
@@ -82,7 +85,14 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphExpand, "Expand all", () => _tree.ExpandAll());
                 yield return Command(Theme.GlyphCollapse, "Collapse all", () => _tree.CollapseAll());
                 yield return CommandSeparator();
-                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "BusinessUnitContents.xlsx", "Business unit"));
+                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "BusinessUnit.xlsx", "Business unit"));
+                yield return Command(Theme.GlyphDownload, "Export users in detail", ExportDetailed);
+                yield return new Label { Text = "Show", AutoSize = true, ForeColor = Theme.TextSecondary, Margin = new Padding(14, 12, 4, 0) };
+                _cmbShow = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130, Margin = new Padding(0, 8, 8, 0), Font = Theme.FontRegular, Name = "ShowChoice" };
+                _cmbShow.Items.AddRange(new object[] { "Users", "Teams", "Roles in use" });
+                _cmbShow.SelectedIndex = 0;
+                _cmbShow.SelectedIndexChanged += (s, e) => ShowContents();
+                yield return _cmbShow;
                 _chkChildren = CommandCheck("Include child business units", ShowContents, isChecked: true);
                 _chkDisabled = CommandCheck("Include disabled users", ShowContents);
                 yield return _chkChildren;
@@ -198,6 +208,17 @@ namespace SecurityToolkit.Features
                 return null;
             }
 
+            private void ExportDetailed()
+            {
+                var rows = new List<IReadOnlyList<string>>();
+                foreach (var row in _detail)
+                {
+                    rows.Add(new[] { row.User, row.BusinessUnit, row.Team, row.Role, row.Source });
+                }
+
+                ExportUi.Save(this, "BusinessUnitUsersDetailed.xlsx", "Users detailed", new[] { "User", "Business Unit", "Team", "Role", "Source" }, rows);
+            }
+
             private void ShowContents()
             {
                 var unit = _tree.SelectedNode?.Tag as BusinessUnitNode;
@@ -207,15 +228,29 @@ namespace SecurityToolkit.Features
                 }
 
                 var children = _chkChildren != null && _chkChildren.Checked;
-                var items = BusinessUnitTree.Contents(Graph, unit.Id, children, _chkDisabled != null && _chkDisabled.Checked);
-                Grid.SetData(items, "Type", "Name", "BusinessUnit=Business Unit", "Detail", "Status");
-                Grid.SetColumnWeight("Type", 80);
-                Grid.SetColumnWeight("Detail", 220);
+                var disabled = _chkDisabled != null && _chkDisabled.Checked;
+                var items = BusinessUnitTree.Contents(Graph, unit.Id, children, disabled);
+                var teams = items.Where(i => i.Type == BusinessUnitTree.TeamType).ToList();
+                var roles = items.Where(i => i.Type == BusinessUnitTree.RoleType).ToList();
+                var users = Graph.UsersInBusinessUnits(Graph.BusinessUnitScope(unit.Id, children), disabled);
+                Graph.BuildUserAccess(users, out var summary, out var detail);
+                _detail = detail;
+
+                switch (_cmbShow == null ? 0 : _cmbShow.SelectedIndex)
+                {
+                    case 1:
+                        Grid.SetData(teams, "Name=Team", "BusinessUnit=Business Unit", "Detail");
+                        break;
+                    case 2:
+                        Grid.SetData(roles, "Name=Role", "Detail", "Status=Kind");
+                        break;
+                    default:
+                        Grid.SetData(summary, "User", "BusinessUnit=Business Unit", "Teams", "DirectRoles=Direct roles", "TeamRoles=Roles from teams", "Status");
+                        break;
+                }
 
                 InfoLabel.Text = $"{unit.Name}{(children ? " and its child business units" : string.Empty)}: " +
-                                 $"{items.Count(i => i.Type == BusinessUnitTree.UserType)} user(s), " +
-                                 $"{items.Count(i => i.Type == BusinessUnitTree.TeamType)} team(s), " +
-                                 $"{items.Count(i => i.Type == BusinessUnitTree.RoleType)} role(s) in use. The default team of each business unit is not listed.";
+                                 $"{users.Count} user(s), {teams.Count} team(s), {roles.Count} role(s) in use. The default team of each business unit is not listed.";
             }
         }
     }

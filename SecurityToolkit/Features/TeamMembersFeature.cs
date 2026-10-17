@@ -11,9 +11,9 @@ namespace SecurityToolkit.Features
     internal sealed class TeamMembersFeature : IFeature
     {
         public string Id => "team-members";
-        public string Title => "Team members";
-        public string Glyph => Glyphs.Group;
-        public FeatureGroup Group => FeatureGroup.Explore;
+        public string Title => "Teams and members";
+        public string Glyph => Glyphs.Team;
+        public FeatureGroup Group => FeatureGroup.LookUp;
         public int Order => 20;
 
         public FeatureView CreateView(IFeatureHost host)

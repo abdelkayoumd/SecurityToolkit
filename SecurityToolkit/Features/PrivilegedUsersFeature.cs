@@ -15,8 +15,8 @@ namespace SecurityToolkit.Features
         public string Id => "privileged-users";
         public string Title => "Privileged users";
         public string Glyph => Glyphs.Shield;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 55;
+        public FeatureGroup Group => FeatureGroup.Review;
+        public int Order => 10;
 
         public FeatureView CreateView(IFeatureHost host)
         {

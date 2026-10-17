@@ -12,9 +12,9 @@ namespace SecurityToolkit.Features
     internal sealed class UsersByRoleFeature : IFeature
     {
         public string Id => "users-by-role";
-        public string Title => "Users by role";
+        public string Title => "Role holders";
         public string Glyph => Glyphs.Permissions;
-        public FeatureGroup Group => FeatureGroup.Explore;
+        public FeatureGroup Group => FeatureGroup.LookUp;
         public int Order => 30;
 
         public FeatureView CreateView(IFeatureHost host)

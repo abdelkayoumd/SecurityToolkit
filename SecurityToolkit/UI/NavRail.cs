@@ -18,6 +18,7 @@ namespace SecurityToolkit.UI
         public const int ExpandedWidth = 210;
         public const int CollapsedWidth = 48;
         private const int ToggleHeight = 40;
+        private const int SearchHeight = 38;
         private const int ItemHeight = 36;
         private const int HeadingHeight = 30;
         private const int DividerHeight = 17;
@@ -30,6 +31,8 @@ namespace SecurityToolkit.UI
 
         private readonly List<Row> _rows = new List<Row>();
         private readonly ToolTip _toolTip = new ToolTip();
+        private readonly HashSet<FeatureGroup> _collapsedGroups = new HashSet<FeatureGroup>();
+        private readonly TextBox _search;
         private int _selected = -1;
         private int _hover = -1;
         private bool _toggleHover;
@@ -53,6 +56,99 @@ namespace SecurityToolkit.UI
             Width = ExpandedWidth;
             Font = Theme.FontRegular;
             Cursor = Cursors.Hand;
+
+            // "Find a screen": with this many screens, typing a word is quicker than scanning the list.
+            _search = new TextBox
+            {
+                Name = "FindScreen",
+                BorderStyle = BorderStyle.FixedSingle,
+                Font = Theme.FontRegular,
+                Location = new Point(8, ToggleHeight + 6),
+                Width = ExpandedWidth - 16,
+                Cursor = Cursors.IBeam
+            };
+            _search.HandleCreated += (s, e) => SendMessage(_search.Handle, EmSetCueBanner, (IntPtr)1, "Find a screen");
+            _search.TextChanged += (s, e) =>
+            {
+                _scroll = 0;
+                ClampScroll();
+                Invalidate();
+            };
+            _search.KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    var first = _rows.FindIndex(r => !r.IsHeading && IsShown(r));
+                    if (first >= 0)
+                    {
+                        Select(_rows[first].Id);
+                    }
+
+                    e.Handled = e.SuppressKeyPress = true;
+                }
+                else if (e.KeyCode == Keys.Escape)
+                {
+                    _search.Clear();
+                    e.Handled = e.SuppressKeyPress = true;
+                }
+            };
+            Controls.Add(_search);
+        }
+
+        private const int EmSetCueBanner = 0x1501;
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
+
+        /// <summary>The text typed in the "Find a screen" box; empty when nothing is being searched for.</summary>
+        internal string SearchText
+        {
+            get => _search.Text;
+            set => _search.Text = value;
+        }
+
+        /// <summary>The y of the first row: below the toggle, and below the search box when the rail is expanded.</summary>
+        internal int ContentTop => ToggleHeight + (_expanded ? SearchHeight : 0);
+
+        private bool Filtering => _expanded && _search.Text.Trim().Length > 0;
+
+        /// <summary>Whether a group's items are folded away behind its heading. Not while searching, and not in icon-only mode.</summary>
+        internal bool IsCollapsed(FeatureGroup group) => _expanded && !Filtering && _collapsedGroups.Contains(group);
+
+        /// <summary>Folds or unfolds a group (its heading is clicked).</summary>
+        internal void ToggleGroup(FeatureGroup group)
+        {
+            if (!_collapsedGroups.Remove(group))
+            {
+                _collapsedGroups.Add(group);
+            }
+
+            ClampScroll();
+            Invalidate();
+        }
+
+        /// <summary>An item matches a search when its title or its group's heading contains what was typed.</summary>
+        private bool Matches(Row row)
+        {
+            var text = _search.Text.Trim();
+            return row.Title.IndexOf(text, StringComparison.CurrentCultureIgnoreCase) >= 0
+                   || (row.Group != FeatureGroup.Start && HeadingText(row.Group).IndexOf(text, StringComparison.CurrentCultureIgnoreCase) >= 0);
+        }
+
+        /// <summary>Whether a row takes any room: hidden by a search or by a folded group.</summary>
+        private bool IsShown(Row row)
+        {
+            if (!_expanded)
+            {
+                return true;
+            }
+
+            if (row.IsHeading)
+            {
+                return !Filtering || _rows.Any(r => !r.IsHeading && r.Group == row.Group && Matches(r));
+            }
+
+            return Filtering ? Matches(row) : !IsCollapsed(row.Group);
         }
 
         public event EventHandler<string> ItemSelected;
@@ -68,12 +164,16 @@ namespace SecurityToolkit.UI
         /// <summary>What the rail lists, top to bottom: item titles, and group headings marked with a leading "#".</summary>
         internal IReadOnlyList<string> RowLabels => _rows.Select(r => r.IsHeading ? "#" + r.Title : r.Title).ToList();
 
+        /// <summary>The rows that take room right now (not folded away, not hidden by a search), same notation as <see cref="RowLabels"/>.</summary>
+        internal IReadOnlyList<string> VisibleRowLabels => _rows.Where(IsShown).Select(r => r.IsHeading ? "#" + r.Title : r.Title).ToList();
+
         public bool Expanded
         {
             get => _expanded;
             set
             {
                 _expanded = value;
+                _search.Visible = value;
                 Width = value ? ExpandedWidth : CollapsedWidth;
                 ClampScroll();
                 Invalidate();
@@ -101,6 +201,13 @@ namespace SecurityToolkit.UI
                 return;
             }
 
+            // Opening a screen from elsewhere (a Home card) must show it in the menu: unfold its group, drop a search that hides it.
+            _collapsedGroups.Remove(_rows[index].Group);
+            if (Filtering && !Matches(_rows[index]))
+            {
+                _search.Clear();
+            }
+
             _selected = index;
             EnsureVisible(index);
             Invalidate();
@@ -109,14 +216,26 @@ namespace SecurityToolkit.UI
 
         private static string HeadingText(FeatureGroup group)
         {
-            return group == FeatureGroup.Change ? "CHANGE" : "EXPLORE";
+            switch (group)
+            {
+                case FeatureGroup.LookUp: return "LOOK UP";
+                case FeatureGroup.UnderstandAccess: return "UNDERSTAND ACCESS";
+                case FeatureGroup.Compare: return "COMPARE";
+                case FeatureGroup.Review: return "REVIEW";
+                default: return "CHANGE";
+            }
         }
 
-        private int Viewport => Math.Max(0, Height - ToggleHeight);
+        private int Viewport => Math.Max(0, Height - ContentTop);
         private int ContentHeight => _rows.Sum(RowHeight);
 
         private int RowHeight(Row row)
         {
+            if (!IsShown(row))
+            {
+                return 0;
+            }
+
             if (!row.IsHeading)
             {
                 return ItemHeight;
@@ -165,7 +284,12 @@ namespace SecurityToolkit.UI
                 return -2;
             }
 
-            var y = point.Y - ToggleHeight + _scroll;
+            if (point.Y < ContentTop)
+            {
+                return -3; // the search box
+            }
+
+            var y = point.Y - ContentTop + _scroll;
             var top = 0;
             for (var i = 0; i < _rows.Count; i++)
             {
@@ -238,7 +362,14 @@ namespace SecurityToolkit.UI
             {
                 Expanded = !Expanded;
             }
-            else if (row >= 0 && !_rows[row].IsHeading)
+            else if (row >= 0 && _rows[row].IsHeading)
+            {
+                if (_expanded && !Filtering)
+                {
+                    ToggleGroup(_rows[row].Group);
+                }
+            }
+            else if (row >= 0)
             {
                 Select(_rows[row].Id);
             }
@@ -252,12 +383,12 @@ namespace SecurityToolkit.UI
             g.Clear(Theme.PanelBackground);
 
             // The scrolling area first, clipped so rows slide under the fixed toggle row.
-            g.SetClip(new Rectangle(0, ToggleHeight, Width - 1, Viewport));
-            var top = ToggleHeight - _scroll;
+            g.SetClip(new Rectangle(0, ContentTop, Width - 1, Viewport));
+            var top = ContentTop - _scroll;
             for (var i = 0; i < _rows.Count; i++)
             {
                 var height = RowHeight(_rows[i]);
-                if (top + height > ToggleHeight && top < Height)
+                if (height > 0 && top + height > ContentTop && top < Height)
                 {
                     if (_rows[i].IsHeading)
                     {
@@ -314,6 +445,14 @@ namespace SecurityToolkit.UI
             TextRenderer.DrawText(g, text, HeadingFont, textBounds, HeadingColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 
+            // A chevron on the right says the heading can be clicked to fold the group (not while a search is showing).
+            if (!Filtering)
+            {
+                TextRenderer.DrawText(g, IsCollapsed(row.Group) ? Theme.GlyphChevronRight : Theme.GlyphChevronDown, Theme.FontIconSmall,
+                    new Rectangle(Width - 30, top + 8, 20, height - 8), HeadingColor,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            }
+
             if (row.Group == FeatureGroup.Change)
             {
                 DrawTag(g, "writes to your org", 14 + TextRenderer.MeasureText(text, HeadingFont, Size.Empty, TextFormatFlags.NoPadding).Width + 8, top + 8 + (height - 8) / 2);
@@ -367,7 +506,8 @@ namespace SecurityToolkit.UI
             }
 
             TextRenderer.DrawText(g, row.Glyph, Theme.FontIcon, new Rectangle(0, bounds.Y, CollapsedWidth, bounds.Height),
-                selected ? Theme.Accent : Theme.TextSecondary,
+                // The Change items wear amber, so they never look like read-only screens.
+                selected ? Theme.Accent : row.Group == FeatureGroup.Change ? Theme.Warning : Theme.TextSecondary,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 
             if (_expanded)
@@ -399,7 +539,7 @@ namespace SecurityToolkit.UI
 
             if (_scroll > 0)
             {
-                var rect = new Rectangle(0, ToggleHeight, Width - 1, fade);
+                var rect = new Rectangle(0, ContentTop, Width - 1, fade);
                 using (var brush = new LinearGradientBrush(rect, Theme.PanelBackground, Color.FromArgb(0, Theme.PanelBackground), LinearGradientMode.Vertical))
                 {
                     g.FillRectangle(brush, rect);
@@ -407,7 +547,7 @@ namespace SecurityToolkit.UI
             }
 
             var thumbHeight = Math.Max(24, Viewport * Viewport / ContentHeight);
-            var thumbTop = ToggleHeight + (int)((long)(Viewport - thumbHeight) * _scroll / MaxScroll);
+            var thumbTop = ContentTop + (int)((long)(Viewport - thumbHeight) * _scroll / MaxScroll);
             using (var brush = new SolidBrush(Color.FromArgb(200, 198, 196)))
             {
                 g.FillRectangle(brush, Width - 7, thumbTop, 4, thumbHeight);

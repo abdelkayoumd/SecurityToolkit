@@ -393,12 +393,12 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void ItIsListedUnderExplore_AfterExplainAccess()
+        public void ItIsListedFirstUnderUnderstandAccess()
         {
             var ids = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
 
-            Assert.Equal(FeatureGroup.Explore, new UserAccessMatrixFeature().Group);
-            Assert.Equal(ids.IndexOf("explain-access") + 1, ids.IndexOf("user-access-matrix"));
+            Assert.Equal(FeatureGroup.UnderstandAccess, new UserAccessMatrixFeature().Group);
+            Assert.Equal(ids.IndexOf("user-access-matrix") + 1, ids.IndexOf("explain-access"));
         }
     }
 }

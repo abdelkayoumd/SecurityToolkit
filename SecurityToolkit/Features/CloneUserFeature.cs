@@ -15,10 +15,10 @@ namespace SecurityToolkit.Features
     internal sealed class CloneUserFeature : IFeature
     {
         public string Id => "clone-user";
-        public string Title => "Clone user profile";
+        public string Title => "Clone a user";
         public string Glyph => Glyphs.Clone;
         public FeatureGroup Group => FeatureGroup.Change;
-        public int Order => 90;
+        public int Order => 40;
 
         public FeatureView CreateView(IFeatureHost host)
         {

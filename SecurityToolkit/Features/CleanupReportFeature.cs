@@ -16,8 +16,8 @@ namespace SecurityToolkit.Features
         public string Id => "cleanup-report";
         public string Title => "Cleanup report";
         public string Glyph => Theme.GlyphWarning;
-        public FeatureGroup Group => FeatureGroup.Explore;
-        public int Order => 60;
+        public FeatureGroup Group => FeatureGroup.Review;
+        public int Order => 20;
 
         public FeatureView CreateView(IFeatureHost host)
         {

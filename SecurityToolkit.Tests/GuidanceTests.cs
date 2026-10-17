@@ -223,7 +223,7 @@ namespace SecurityToolkit.Tests
                 var flow = (FlowLayoutPanel)Sta.Find(view, c => c.Name == "HomeCards");
                 headings.AddRange(flow.Controls.OfType<Label>().Select(l => l.Text));
 
-                Assert.Contains("FIND OUT WHO HAS WHAT", headings);
+                Assert.Contains("LOOK UP", headings);
                 Assert.Contains(headings, h => h.StartsWith("CHANGE") && h.Contains("REVIEWED"));
             });
         }

@@ -16,11 +16,14 @@ namespace SecurityToolkit.UI
         public const string AddPerson = "";
         public const string Security = "";
         public const string Clone = "";
-        public const string Business = "";
+        public const string Business = "";
         public const string Swap = "";
         public const string Compare = "";
         public const string Help = "";
-        public const string Shield = "";
-        public const string Grid ="";
+        public const string Shield = "";
+        public const string Grid = "";
+        public const string Team = "";
+        public const string TeamShield = "";
+        public const string CompareRoles = "";
     }
 }
