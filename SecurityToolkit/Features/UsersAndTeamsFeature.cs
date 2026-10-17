@@ -92,7 +92,7 @@ namespace SecurityToolkit.Features
             protected override IEnumerable<Control> CreateCommands()
             {
                 yield return Command(Theme.GlyphDownload, "Load users", () => WithGraph(OnGraphLoaded), strong: true);
-                yield return Command(Glyphs.Group, "Show teams", () => WithGraph(() => ShowTeams(promptWhenNothingSelected: true)));
+                yield return Command(Glyphs.Group, "Show teams", ShowTeamsClicked);
                 yield return Command(Theme.GlyphRefresh, "Refresh", () => WithGraph(OnGraphLoaded, refresh: true));
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphExpand, "Expand all", () => _tree.ExpandAll());
@@ -125,6 +125,28 @@ namespace SecurityToolkit.Features
                 InfoLabel.Text = $"{users.Count} user(s). Select users (Ctrl/Shift for several) to see their teams and roles.";
             }
 
+            /// <summary>
+            /// With no users listed yet there is nothing to show teams for, so offer to load them first instead of
+            /// asking about "all listed users" that do not exist.
+            /// </summary>
+            private void ShowTeamsClicked()
+            {
+                Host.EnsureConnection(() =>
+                {
+                    if (Graph == null || Grid.GetVisible<UserInfo>().Count == 0)
+                    {
+                        if (Host.CreateChangeUi(this).Ask("The users are not loaded yet. Load them now? You can then select users and show their teams."))
+                        {
+                            WithGraph(OnGraphLoaded);
+                        }
+
+                        return;
+                    }
+
+                    ShowTeams(promptWhenNothingSelected: true);
+                });
+            }
+
             private void ShowTeams(bool promptWhenNothingSelected)
             {
                 var users = Grid.GetSelected<UserInfo>();
@@ -136,9 +158,7 @@ namespace SecurityToolkit.Features
                         return;
                     }
 
-                    var answer = MessageBox.Show(this, "No user is selected. Show the teams of all listed users?", "Show teams",
-                        MessageBoxButtons.YesNo, MessageBoxIcon.Question);
-                    if (answer != DialogResult.Yes)
+                    if (!Host.CreateChangeUi(this).Ask("No user is selected. Show the teams of all listed users?"))
                     {
                         return;
                     }

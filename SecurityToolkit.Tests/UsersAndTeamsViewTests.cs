@@ -47,6 +47,67 @@ namespace SecurityToolkit.Tests
             });
         }
 
+        private static void Fresh(Action<FeatureView, TestHost, DataGridView, TreeView> test)
+        {
+            Sta.Run(() =>
+            {
+                var host = OrgFake.HostFor(new Org());
+                var view = new UsersAndTeamsFeature().CreateView(host);
+                var form = new Form { Size = new Size(1000, 500) };
+                form.Controls.Add(view);
+                form.Show();
+                Application.DoEvents();
+                _ = view.Commands;
+                test(view, host, (DataGridView)Sta.Find(view, c => c is DataGridView), (TreeView)Sta.Find(view, c => c is TreeView));
+                form.Dispose();
+            });
+        }
+
+        [Fact]
+        public void ShowTeams_BeforeTheUsersAreLoaded_OffersToLoadThemFirst()
+        {
+            Fresh((view, host, grid, tree) =>
+            {
+                Click(Button(view, "Show teams"));
+
+                var question = Assert.Single(host.Ui.Asked);
+                Assert.Contains("not loaded", question);
+                Assert.DoesNotContain("all listed users", question);
+                Assert.True(grid.Rows.Count > 0);   // the users were loaded
+                Assert.Empty(tree.Nodes);           // and nothing is shown until the user chooses some
+            });
+        }
+
+        [Fact]
+        public void ShowTeams_BeforeTheUsersAreLoaded_LoadsNothing_WhenTheUserDeclines()
+        {
+            Fresh((view, host, grid, tree) =>
+            {
+                host.Ui.Answer = false;
+
+                Click(Button(view, "Show teams"));
+
+                Assert.Single(host.Ui.Asked);
+                Assert.Equal(0, grid.Rows.Count);
+                Assert.Empty(tree.Nodes);
+            });
+        }
+
+        [Fact]
+        public void ShowTeams_WithUsersLoadedButNoneSelected_StillOffersAllListedUsers()
+        {
+            Fresh((view, host, grid, tree) =>
+            {
+                Click(Button(view, "Load users"));
+                grid.ClearSelection();
+
+                Click(Button(view, "Show teams"));
+
+                Assert.Contains("all listed users", Assert.Single(host.Ui.Asked));
+                Assert.NotEmpty(tree.Nodes);
+            });
+        }
+
         private static string[] Texts(TreeNodeCollection nodes)
         {
             return nodes.Cast<TreeNode>().Select(n => n.Text).ToArray();

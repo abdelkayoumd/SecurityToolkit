@@ -43,6 +43,10 @@ namespace SecurityToolkit.Tests
         }
 
         public void Tell(string message) { Told.Add(message); }
+
+        public List<string> Asked = new List<string>();
+        public bool Answer = true;
+        public bool Ask(string question) { Asked.Add(question); return Answer; }
     }
 
     public class PlanRunnerTests
@@ -186,6 +190,7 @@ namespace SecurityToolkit.Tests
             public bool ConfirmApplyWithoutRestoreFile() => false;
             public bool ShowResults(IReadOnlyList<ChangeResult> results) => _inner.ShowResults(results);
             public void Tell(string message) { }
+            public bool Ask(string question) => false;
         }
 
         [Fact]

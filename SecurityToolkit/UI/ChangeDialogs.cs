@@ -27,6 +27,9 @@ namespace SecurityToolkit.UI
         bool ShowResults(IReadOnlyList<ChangeResult> results);
 
         void Tell(string message);
+
+        /// <summary>A yes/no question; true for yes.</summary>
+        bool Ask(string question);
     }
 
     /// <summary>The real windows.</summary>
@@ -80,6 +83,11 @@ namespace SecurityToolkit.UI
         public void Tell(string message)
         {
             MessageBox.Show(_owner, message, "Security Toolkit", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        public bool Ask(string question)
+        {
+            return MessageBox.Show(_owner, question, "Security Toolkit", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         }
     }
 
