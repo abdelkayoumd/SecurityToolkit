@@ -46,6 +46,8 @@ namespace SecurityToolkit.Features
                 // The look of the Dynamics 365 security role editor: an icon and the depth in words in every cell.
                 Grid.BodyCellRenderer = DepthCell.Paint;
                 Grid.RowHeight = 36;
+                // The user name is not a column; it shows when the mouse rests on the full name.
+                Master.CellToolTip = (item, column) => column == "FullName" && item is UserInfo user ? user.DomainName : null;
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
@@ -91,7 +93,7 @@ namespace SecurityToolkit.Features
 
                 var includeDisabled = _chkDisabled != null && _chkDisabled.Checked;
                 Master.SetData(Graph.Users.Where(u => includeDisabled || !u.IsDisabled).ToList(),
-                    "FullName=Full Name", "DomainName=User Name", "BusinessUnitName=Business Unit", "Status");
+                    "FullName=Full Name", "BusinessUnitName=Business Unit", "Status");
                 if (_user == null)
                 {
                     InfoLabel.Text = PromptText;

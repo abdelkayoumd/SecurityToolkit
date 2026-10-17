@@ -101,6 +101,12 @@ namespace SecurityToolkit.UI
             _grid.CellPainting += PaintBodyCell;
             _grid.CellToolTipTextNeeded += (s, e) =>
             {
+                // A screen can say more about a cell than the cell shows: its own tip, from the row and the column.
+                if (CellToolTip != null && e.RowIndex >= 0 && e.ColumnIndex >= 0 && string.IsNullOrEmpty(e.ToolTipText))
+                {
+                    e.ToolTipText = CellToolTip(_grid.Rows[e.RowIndex].DataBoundItem, _grid.Columns[e.ColumnIndex].DataPropertyName) ?? string.Empty;
+                }
+
                 // A custom-drawn cell may clip its text at the cell edge, so the hover tip carries the whole of it.
                 if (BodyCellRenderer != null && e.RowIndex >= 0 && e.ColumnIndex >= 0 && string.IsNullOrEmpty(e.ToolTipText))
                 {
@@ -161,6 +167,9 @@ namespace SecurityToolkit.UI
         /// selection and borders; the renderer paints what is inside.
         /// </summary>
         public CellRenderer BodyCellRenderer { get; set; }
+
+        /// <summary>Optional: the hover tip of a cell, from the row's item and the column's property name. Null or empty for none.</summary>
+        public Func<object, string, string> CellToolTip { get; set; }
 
         /// <summary>Height of each row, in pixels. Set before binding data.</summary>
         public int RowHeight
