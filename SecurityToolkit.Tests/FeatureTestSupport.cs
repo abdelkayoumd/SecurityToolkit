@@ -144,8 +144,19 @@ namespace SecurityToolkit.Tests
 
                         break;
                     case "privilege" when org != null:
-                        // Whatever table and access right is asked for, one privilege exists.
-                        result.Entities.Add(new Entity("privilege", Guid.NewGuid()));
+                        // The privilege for the action and table asked for (the same one the grants below refer to).
+                        var rightAsked = ((QueryExpression)q).Criteria.Conditions.FirstOrDefault(c => c.AttributeName == "accessright");
+                        var tableAsked = ((QueryExpression)q).LinkEntities.SelectMany(l => l.LinkCriteria.Conditions).FirstOrDefault(c => c.AttributeName == "objecttypecode");
+                        if (rightAsked != null && tableAsked != null)
+                        {
+                            var wanted = Privileges.TryKind((int)rightAsked.Values[0], out var kindAsked) ? kindAsked : PrivilegeKind.Read;
+                            result.Entities.Add(new Entity("privilege", CatalogId((string)tableAsked.Values[0], wanted)));
+                        }
+                        else
+                        {
+                            result.Entities.Add(new Entity("privilege", Guid.NewGuid()));
+                        }
+
                         break;
                     case "roleprivileges" when org != null && ((QueryExpression)q).Criteria.Conditions.Any(c => c.AttributeName == "roleid"):
                         // What the asked-for role records grant: every catalogue privilege, as far as the role reaches.

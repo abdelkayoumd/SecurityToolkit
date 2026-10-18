@@ -194,7 +194,12 @@ namespace SecurityToolkit.Tests
                             return e;
                         }).ToList());
                     case "privilege":
-                        return new EntityCollection(new List<Entity> { new Entity("privilege", Guid.NewGuid()) });
+                        // The privilege for the action and table asked for.
+                        var rightAsked = q.Criteria.Conditions.First(c => c.AttributeName == "accessright");
+                        var tableAsked = (string)q.LinkEntities.SelectMany(l => l.LinkCriteria.Conditions).First(c => c.AttributeName == "objecttypecode").Values[0];
+                        return new EntityCollection(PrivilegeCatalog()
+                            .Where(p => p.Key.Item1 == tableAsked && Privileges.AccessRight(p.Key.Item2) == (int)rightAsked.Values[0])
+                            .Select(p => new Entity("privilege", p.Value)).ToList());
                     case "roleprivileges" when q.Criteria.Conditions.Any(c => c.AttributeName == "roleid"):
                         // What each requested role record grants, table by table.
                         var asked = new HashSet<Guid>(q.Criteria.Conditions.First(c => c.AttributeName == "roleid").Values.Cast<Guid>());

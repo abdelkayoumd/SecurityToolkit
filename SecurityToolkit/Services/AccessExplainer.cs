@@ -96,8 +96,8 @@ namespace SecurityToolkit.Services
             }
 
             var catalog = coverage.CatalogMatches == 0
-                ? $"No {Privileges.Label(kind)} privilege on {table} was found in the privilege catalog ({coverage.CatalogSize} privileges read)."
-                : $"The catalog has {coverage.CatalogMatches} {Privileges.Label(kind)} privilege record(s) for {table}.";
+                ? $"No {Privileges.Label(kind)} privilege on {table} was found."
+                : $"Found {coverage.CatalogMatches} {Privileges.Label(kind)} privilege record(s) for {table}.";
             return $"Checked {coverage.RolesChecked} role record(s): {coverage.RolesWithPrivileges} came back with privileges ({coverage.PrivilegeRows} rows). {catalog}";
         }
 

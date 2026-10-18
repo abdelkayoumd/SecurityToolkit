@@ -29,6 +29,8 @@ namespace SecurityToolkit.Services
         private IReadOnlyDictionary<Guid, PrivilegeTarget> _catalog;
         private SecurityGraph _graph;
         private IReadOnlyList<TableInfo> _tables;
+        private readonly Dictionary<int, string> _typeCodes = new Dictionary<int, string>();
+        private readonly Dictionary<string, IReadOnlyList<Guid>> _privilegeIds = new Dictionary<string, IReadOnlyList<Guid>>();
 
         public SecurityService(IOrganizationService service)
         {
@@ -48,6 +50,8 @@ namespace SecurityToolkit.Services
             _catalog = null;
             _deleteReach = null;
             _roleGrants.Clear();
+            _typeCodes.Clear();
+            _privilegeIds.Clear();
         }
 
         /// <summary>Everything the read-only features need, loaded once (paged) and cached until <see cref="Invalidate"/>.</summary>
@@ -73,6 +77,14 @@ namespace SecurityToolkit.Services
 
             var response = (RetrieveAllEntitiesResponse)_service.Execute(
                 new RetrieveAllEntitiesRequest { EntityFilters = EntityFilters.Entity, RetrieveAsIfPublished = false });
+            foreach (var meta in response.EntityMetadata)
+            {
+                if (meta.ObjectTypeCode.HasValue)
+                {
+                    _typeCodes[meta.ObjectTypeCode.Value] = meta.LogicalName;
+                }
+            }
+
             return _tables = response.EntityMetadata
                 .Where(m => m.IsIntersect != true && m.IsPrivate != true)
                 .Select(m => new TableInfo
@@ -145,7 +157,7 @@ namespace SecurityToolkit.Services
             var catalog = new Dictionary<Guid, PrivilegeTarget>();
             foreach (var entity in RetrieveAll(query))
             {
-                var table = (entity.GetAttributeValue<AliasedValue>("otc.objecttypecode")?.Value) as string;
+                var table = TableOf(entity.GetAttributeValue<AliasedValue>("otc.objecttypecode")?.Value);
                 if (string.IsNullOrEmpty(table) || !Privileges.TryKind(entity.GetAttributeValue<int>("accessright"), out var kind))
                 {
                     continue;
@@ -163,8 +175,12 @@ namespace SecurityToolkit.Services
         /// </summary>
         public IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrant>> GetRolePrivileges(IEnumerable<Guid> roleIds)
         {
+            // A business-unit copy of a role holds no privilege rows of its own: they sit on the root role, which the copy
+            // mirrors. So ask for the roots, and hand each copy its root's privileges.
+            var rootOf = RootOf();
             var wanted = roleIds.Distinct().ToList();
-            var missing = wanted.Where(id => !_roleGrants.ContainsKey(id)).ToList();
+            var roots = wanted.Select(rootOf).Distinct().ToList();
+            var missing = roots.Where(id => !_roleGrants.ContainsKey(id)).ToList();
 
             for (var offset = 0; offset < missing.Count; offset += RoleChunk)
             {
@@ -198,7 +214,56 @@ namespace SecurityToolkit.Services
                 }
             }
 
-            return wanted.ToDictionary(id => id, id => _roleGrants[id]);
+            return wanted.ToDictionary(id => id, id => _roleGrants[rootOf(id)]);
+        }
+
+        /// <summary>The root role id of each role record: a copy maps to its root, a root (or an unknown id) to itself.</summary>
+        private Func<Guid, Guid> RootOf()
+        {
+            var roots = GetRoles().ToDictionary(r => r.Id, r => r.RootKey);
+            return id => roots.TryGetValue(id, out var root) ? root : id;
+        }
+
+        /// <summary>The value of a privilege's table as the catalog query returns it: the logical name, or the object type code to look up.</summary>
+        private string TableOf(object value)
+        {
+            if (value is string name)
+            {
+                return name;
+            }
+
+            int? code = value is int number ? number : value is OptionSetValue option ? option.Value : (int?)null;
+            if (!code.HasValue)
+            {
+                return null;
+            }
+
+            GetTables();
+            return _typeCodes.TryGetValue(code.Value, out var logical) ? logical : null;
+        }
+
+        /// <summary>The privilege records for one action on one table (normally one), found the way the privilege finder finds them.</summary>
+        public IReadOnlyList<Guid> FindPrivilegeIds(string table, PrivilegeKind kind)
+        {
+            var key = table.ToLowerInvariant() + "|" + kind;
+            if (_privilegeIds.TryGetValue(key, out var known))
+            {
+                return known;
+            }
+
+            var query = new QueryExpression("privilege")
+            {
+                ColumnSet = new ColumnSet("privilegeid"),
+                Criteria = { Conditions = { new ConditionExpression("accessright", ConditionOperator.Equal, Privileges.AccessRight(kind)) } },
+                LinkEntities =
+                {
+                    new LinkEntity("privilege", "privilegeobjecttypecodes", "privilegeid", "privilegeid", JoinOperator.Inner)
+                    {
+                        LinkCriteria = { Conditions = { new ConditionExpression("objecttypecode", ConditionOperator.Equal, table) } }
+                    }
+                }
+            };
+            return _privilegeIds[key] = RetrieveAll(query).Select(e => e.Id).Distinct().ToList();
         }
 
         /// <summary>
@@ -273,19 +338,7 @@ namespace SecurityToolkit.Services
         public IReadOnlyDictionary<Guid, PrivilegeDepth> GetRoleGrants(string table, PrivilegeKind kind)
         {
             var grants = new Dictionary<Guid, PrivilegeDepth>();
-            var privilegeQuery = new QueryExpression("privilege")
-            {
-                ColumnSet = new ColumnSet("privilegeid"),
-                Criteria = { Conditions = { new ConditionExpression("accessright", ConditionOperator.Equal, Privileges.AccessRight(kind)) } },
-                LinkEntities =
-                {
-                    new LinkEntity("privilege", "privilegeobjecttypecodes", "privilegeid", "privilegeid", JoinOperator.Inner)
-                    {
-                        LinkCriteria = { Conditions = { new ConditionExpression("objecttypecode", ConditionOperator.Equal, table) } }
-                    }
-                }
-            };
-            var privilegeIds = RetrieveAll(privilegeQuery).Select(e => e.Id).Distinct().Cast<object>().ToArray();
+            var privilegeIds = FindPrivilegeIds(table, kind).Cast<object>().ToArray();
             if (privilegeIds.Length == 0)
             {
                 return grants;
@@ -319,9 +372,7 @@ namespace SecurityToolkit.Services
         /// </summary>
         public IReadOnlyDictionary<Guid, PrivilegeDepth> GetRoleGrantsFor(IEnumerable<Guid> roleIds, string table, PrivilegeKind kind)
         {
-            var wanted = new HashSet<Guid>(GetPrivilegeCatalog()
-                .Where(p => p.Value.Kind == kind && string.Equals(p.Value.Table, table, StringComparison.OrdinalIgnoreCase))
-                .Select(p => p.Key));
+            var wanted = new HashSet<Guid>(FindPrivilegeIds(table, kind));
 
             var grants = new Dictionary<Guid, PrivilegeDepth>();
             if (wanted.Count == 0)
@@ -352,15 +403,13 @@ namespace SecurityToolkit.Services
         /// <summary>What the lookup in <see cref="GetRoleGrantsFor"/> actually had to go on. Uses what is already read; asks for nothing new.</summary>
         public GrantCoverage GetGrantCoverage(IEnumerable<Guid> roleIds, string table, PrivilegeKind kind)
         {
-            var catalog = GetPrivilegeCatalog();
             var byRole = GetRolePrivileges(roleIds);
             return new GrantCoverage
             {
                 RolesChecked = byRole.Count,
                 RolesWithPrivileges = byRole.Count(r => r.Value.Count > 0),
                 PrivilegeRows = byRole.Sum(r => r.Value.Count),
-                CatalogSize = catalog.Count,
-                CatalogMatches = catalog.Count(p => p.Value.Kind == kind && string.Equals(p.Value.Table, table, StringComparison.OrdinalIgnoreCase))
+                CatalogMatches = FindPrivilegeIds(table, kind).Count
             };
         }
 

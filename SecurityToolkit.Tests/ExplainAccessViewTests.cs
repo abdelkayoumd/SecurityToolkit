@@ -84,8 +84,9 @@ namespace SecurityToolkit.Tests
                 PickTable(table, "account");
                 TeamMembersViewTests.Pump(() => routes.GetVisible<AccessReasonRow>().Any());
 
-                var row = Assert.Single(routes.GetVisible<AccessReasonRow>());
-                Assert.Equal("Team: Reviewers", row.Via);
+                // Bob also holds Seller directly, through its business-unit copy, which mirrors the root role's privileges.
+                var row = Assert.Single(routes.GetVisible<AccessReasonRow>(), r => r.Via == "Team: Reviewers");
+                Assert.Contains(routes.GetVisible<AccessReasonRow>(), r => r.Role == "Seller" && r.Via == "Direct");
                 Assert.NotNull(Info(view, "may apply only to records the team owns"));
             });
         }
@@ -113,9 +114,9 @@ namespace SecurityToolkit.Tests
             {
                 MasterDetailHarness.Select<UserInfo>(users, u => true);
                 PickTable(table, "account");
-                TeamMembersViewTests.Pump(() => routes.GetVisible<AccessReasonRow>().Count() == 3);
+                TeamMembersViewTests.Pump(() => routes.GetVisible<AccessReasonRow>().Count() == 4);
 
-                Assert.Equal(new[] { "Ada", "Bob", "Dee" }, routes.GetVisible<AccessReasonRow>().Select(r => r.User).OrderBy(n => n));
+                Assert.Equal(new[] { "Ada", "Bob", "Bob", "Dee" }, routes.GetVisible<AccessReasonRow>().Select(r => r.User).OrderBy(n => n));
                 Assert.NotNull(Info(view, "2 of 3 selected users have a role that grants Read on"));
             });
         }

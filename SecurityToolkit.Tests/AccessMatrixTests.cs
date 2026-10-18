@@ -287,6 +287,12 @@ namespace SecurityToolkit.Tests
             Assert.Empty(result[empty]);
         }
 
+        /// <summary>The privilege reads, leaving out the one-off read of the roles (needed to find each role's root).</summary>
+        private static System.Collections.Generic.List<QueryExpression> PrivilegeQueries(FakeOrganizationService fake)
+        {
+            return fake.Queries.OfType<QueryExpression>().Where(q => q.EntityName == "roleprivileges").ToList();
+        }
+
         [Fact]
         public void RolePrivileges_AreFetchedOnlyForRolesNotAlreadyKnown()
         {
@@ -296,11 +302,11 @@ namespace SecurityToolkit.Tests
 
             service.GetRolePrivileges(new[] { a });
             service.GetRolePrivileges(new[] { a });            // nothing new
-            Assert.Single(fake.Queries);
+            Assert.Single(PrivilegeQueries(fake));
 
             service.GetRolePrivileges(new[] { a, b });         // only b is new
-            Assert.Equal(2, fake.Queries.Count);
-            var asked = ((QueryExpression)fake.Queries[1]).Criteria.Conditions.Single().Values.Cast<Guid>().ToList();
+            Assert.Equal(2, PrivilegeQueries(fake).Count);
+            var asked = PrivilegeQueries(fake)[1].Criteria.Conditions.Single().Values.Cast<Guid>().ToList();
             Assert.Equal(new[] { b }, asked);
         }
 
@@ -312,7 +318,7 @@ namespace SecurityToolkit.Tests
 
             new SecurityService(fake).GetRolePrivileges(ids);
 
-            Assert.Equal(3, fake.Queries.Count); // 100 + 100 + 50
+            Assert.Equal(3, PrivilegeQueries(fake).Count); // 100 + 100 + 50
         }
 
         [Theory]

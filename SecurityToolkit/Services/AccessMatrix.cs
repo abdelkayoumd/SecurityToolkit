@@ -31,11 +31,9 @@ namespace SecurityToolkit.Services
         /// <summary>How many privilege rows came back in all.</summary>
         public int PrivilegeRows { get; set; }
 
-        /// <summary>How many privilege records the catalog has for the asked action on the asked table (normally one).</summary>
+        /// <summary>How many privilege records exist for the asked action on the asked table (normally one).</summary>
         public int CatalogMatches { get; set; }
 
-        /// <summary>How many privilege records the catalog has in all.</summary>
-        public int CatalogSize { get; set; }
     }
 
     /// <summary>One table and, for each privilege, how far the user's roles reach (empty when they do not).</summary>
