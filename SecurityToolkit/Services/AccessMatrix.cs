@@ -19,6 +19,25 @@ namespace SecurityToolkit.Services
         public PrivilegeDepth Depth { get; set; }
     }
 
+    /// <summary>What was actually read when looking for a privilege, so an answer of "none" can be told from "nothing was read".</summary>
+    internal sealed class GrantCoverage
+    {
+        /// <summary>How many role records were asked about.</summary>
+        public int RolesChecked { get; set; }
+
+        /// <summary>How many of them came back with at least one privilege.</summary>
+        public int RolesWithPrivileges { get; set; }
+
+        /// <summary>How many privilege rows came back in all.</summary>
+        public int PrivilegeRows { get; set; }
+
+        /// <summary>How many privilege records the catalog has for the asked action on the asked table (normally one).</summary>
+        public int CatalogMatches { get; set; }
+
+        /// <summary>How many privilege records the catalog has in all.</summary>
+        public int CatalogSize { get; set; }
+    }
+
     /// <summary>One table and, for each privilege, how far the user's roles reach (empty when they do not).</summary>
     internal sealed class MatrixRow
     {

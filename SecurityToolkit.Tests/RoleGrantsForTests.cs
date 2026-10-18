@@ -104,3 +104,79 @@ namespace SecurityToolkit.Tests
         }
     }
 }
+
+namespace SecurityToolkit.Tests
+{
+    public class GrantCoverageTests
+    {
+        private static Entity Privilege(Guid id, int right, string table) => new Entity("privilege", id)
+        {
+            ["accessright"] = right,
+            ["otc.objecttypecode"] = new Microsoft.Xrm.Sdk.AliasedValue("privilegeobjecttypecodes", "objecttypecode", table)
+        };
+
+        private static (FakeOrganizationService, Guid, Guid) Fake()
+        {
+            var create = Guid.NewGuid();
+            var withRows = Guid.NewGuid();
+            var withoutRows = Guid.NewGuid();
+            var fake = new FakeOrganizationService
+            {
+                OnRetrieveMultiple = q => ((QueryExpression)q).EntityName == "privilege"
+                    ? new EntityCollection(new System.Collections.Generic.List<Entity> { Privilege(create, 32, "account"), Privilege(Guid.NewGuid(), 1, "account") })
+                    : new EntityCollection(new System.Collections.Generic.List<Entity>
+                    {
+                        new Entity("roleprivileges") { ["roleid"] = withRows, ["privilegeid"] = create, ["privilegedepthmask"] = 4 }
+                    })
+            };
+            return (fake, withRows, withoutRows);
+        }
+
+        [Fact]
+        public void TheCoverageSaysHowManyRolesWereCheckedAndHowManyCameBackWithPrivileges()
+        {
+            var (fake, withRows, withoutRows) = Fake();
+
+            var coverage = new SecurityService(fake).GetGrantCoverage(new[] { withRows, withoutRows }, "account", PrivilegeKind.Create);
+
+            Assert.Equal(2, coverage.RolesChecked);
+            Assert.Equal(1, coverage.RolesWithPrivileges);
+            Assert.Equal(1, coverage.PrivilegeRows);
+            Assert.Equal(1, coverage.CatalogMatches);
+            Assert.Equal(2, coverage.CatalogSize);
+        }
+
+        [Fact]
+        public void ATableWithoutThatPrivilege_HasNoCatalogMatch()
+        {
+            var (fake, withRows, _) = Fake();
+
+            Assert.Equal(0, new SecurityService(fake).GetGrantCoverage(new[] { withRows }, "lead", PrivilegeKind.Create).CatalogMatches);
+        }
+
+        [Fact]
+        public void TheDescription_SaysWhatTheAnswerRestsOn()
+        {
+            var text = AccessExplainer.DescribeCoverage(
+                new GrantCoverage { RolesChecked = 15, RolesWithPrivileges = 14, PrivilegeRows = 9000, CatalogMatches = 1, CatalogSize = 5600 }, PrivilegeKind.Create, "Account");
+
+            Assert.Contains("Checked 15 role record(s): 14 came back with privileges (9000 rows)", text);
+            Assert.Contains("1 Create privilege record(s) for Account", text);
+        }
+
+        [Fact]
+        public void WhenTheCatalogHasNoSuchPrivilege_TheDescriptionSaysSo()
+        {
+            var text = AccessExplainer.DescribeCoverage(
+                new GrantCoverage { RolesChecked = 3, RolesWithPrivileges = 3, PrivilegeRows = 100, CatalogMatches = 0, CatalogSize = 5600 }, PrivilegeKind.Create, "Account");
+
+            Assert.Contains("No Create privilege on Account was found in the privilege catalog (5600 privileges read)", text);
+        }
+
+        [Fact]
+        public void ForAUserWithoutRoles_ItSaysThereIsNothingToCheck()
+        {
+            Assert.Equal("The user holds no role to check.", AccessExplainer.DescribeCoverage(new GrantCoverage(), PrivilegeKind.Read, "Account"));
+        }
+    }
+}

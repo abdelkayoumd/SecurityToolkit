@@ -219,8 +219,11 @@ namespace SecurityToolkit.Features
 
                 // Only the roles these users hold matter, so only their privileges are read.
                 var roleIds = users.SelectMany(u => AccessMatrixBuilder.RoleIdsOf(graph, u)).Distinct().ToList();
-                Host.RunAsync("Checking access...", security => security.GetRoleGrantsFor(roleIds, table.LogicalName, kind), grants =>
+                Host.RunAsync("Checking access...", security => new KeyValuePair<IReadOnlyDictionary<Guid, PrivilegeDepth>, GrantCoverage>(
+                    security.GetRoleGrantsFor(roleIds, table.LogicalName, kind), security.GetGrantCoverage(roleIds, table.LogicalName, kind)), result =>
                 {
+                    var grants = result.Key;
+                    var coverage = result.Value;
                     var answers = users.Select(u => AccessExplainer.Explain(graph, u, grants)).ToList();
                     var rows = new List<AccessReasonRow>();
                     foreach (var answer in answers)
@@ -237,15 +240,21 @@ namespace SecurityToolkit.Features
 
                     Grid.SetData(rows, "User", "Role", "RoleBusinessUnit=Role's business unit", "Via", "Depth", "Strongest");
                     Grid.SetColumnMinimumWidth("Depth", 200);
-                    InfoLabel.Text = Describe(answers, kind, table.DisplayName);
+                    InfoLabel.Text = Describe(answers, kind, table.DisplayName, coverage);
                 });
             }
 
-            private static string Describe(IReadOnlyList<AccessAnswer> answers, PrivilegeKind kind, string table)
+            private static string Describe(IReadOnlyList<AccessAnswer> answers, PrivilegeKind kind, string table, GrantCoverage coverage)
             {
                 if (answers.Count == 1)
                 {
                     var text = AccessExplainer.Summarize(answers[0], kind, table);
+                    if (!answers[0].HasAccess)
+                    {
+                        // So a "none" can be told from "nothing was read": what the answer was based on.
+                        text += " " + AccessExplainer.DescribeCoverage(coverage, kind, table);
+                    }
+
                     return AccessExplainer.NeedsTeamCaveat(answers[0])
                         ? text + " Roles through a team may apply only to records the team owns, depending on its member privilege inheritance."
                         : text;

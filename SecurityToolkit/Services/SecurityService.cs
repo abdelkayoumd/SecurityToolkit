@@ -349,6 +349,21 @@ namespace SecurityToolkit.Services
             return grants;
         }
 
+        /// <summary>What the lookup in <see cref="GetRoleGrantsFor"/> actually had to go on. Uses what is already read; asks for nothing new.</summary>
+        public GrantCoverage GetGrantCoverage(IEnumerable<Guid> roleIds, string table, PrivilegeKind kind)
+        {
+            var catalog = GetPrivilegeCatalog();
+            var byRole = GetRolePrivileges(roleIds);
+            return new GrantCoverage
+            {
+                RolesChecked = byRole.Count,
+                RolesWithPrivileges = byRole.Count(r => r.Value.Count > 0),
+                PrivilegeRows = byRole.Sum(r => r.Value.Count),
+                CatalogSize = catalog.Count,
+                CatalogMatches = catalog.Count(p => p.Value.Kind == kind && string.Equals(p.Value.Table, table, StringComparison.OrdinalIgnoreCase))
+            };
+        }
+
         public IReadOnlyList<UserInfo> GetUsers()
         {
             return _users ?? (_users = Fetch(new QueryExpression("systemuser")

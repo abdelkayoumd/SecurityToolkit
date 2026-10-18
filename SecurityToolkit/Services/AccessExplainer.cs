@@ -87,6 +87,20 @@ namespace SecurityToolkit.Services
             });
         }
 
+        /// <summary>What a "no role grants this" answer rests on: how many roles were looked at and how much came back.</summary>
+        public static string DescribeCoverage(GrantCoverage coverage, PrivilegeKind kind, string table)
+        {
+            if (coverage.RolesChecked == 0)
+            {
+                return "The user holds no role to check.";
+            }
+
+            var catalog = coverage.CatalogMatches == 0
+                ? $"No {Privileges.Label(kind)} privilege on {table} was found in the privilege catalog ({coverage.CatalogSize} privileges read)."
+                : $"The catalog has {coverage.CatalogMatches} {Privileges.Label(kind)} privilege record(s) for {table}.";
+            return $"Checked {coverage.RolesChecked} role record(s): {coverage.RolesWithPrivileges} came back with privileges ({coverage.PrivilegeRows} rows). {catalog}";
+        }
+
         /// <summary>One sentence for the user's result.</summary>
         public static string Summarize(AccessAnswer answer, PrivilegeKind kind, string table)
         {
