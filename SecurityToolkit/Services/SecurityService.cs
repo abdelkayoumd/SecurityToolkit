@@ -26,7 +26,7 @@ namespace SecurityToolkit.Services
         private const int PrivilegeChunk = 500;
         private OrgDeleteReach _deleteReach;
         private readonly Dictionary<Guid, IReadOnlyList<RoleGrant>> _roleGrants = new Dictionary<Guid, IReadOnlyList<RoleGrant>>();
-        private IReadOnlyDictionary<Guid, PrivilegeTarget> _catalog;
+        private IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> _catalog;
         private SecurityGraph _graph;
         private IReadOnlyList<TableInfo> _tables;
         private readonly Dictionary<int, string> _typeCodes = new Dictionary<int, string>();
@@ -134,7 +134,7 @@ namespace SecurityToolkit.Services
         /// Which action on which table each privilege record stands for. Privileges that are not one of the eight
         /// table actions (or not about a table) are left out.
         /// </summary>
-        public IReadOnlyDictionary<Guid, PrivilegeTarget> GetPrivilegeCatalog()
+        public IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> GetPrivilegeCatalog()
         {
             if (_catalog != null)
             {
@@ -154,7 +154,8 @@ namespace SecurityToolkit.Services
                 }
             };
 
-            var catalog = new Dictionary<Guid, PrivilegeTarget>();
+            // One privilege can stand for the same action on several tables, so a privilege has a list of targets.
+            var catalog = new Dictionary<Guid, List<PrivilegeTarget>>();
             foreach (var entity in RetrieveAll(query))
             {
                 var table = TableOf(entity.GetAttributeValue<AliasedValue>("otc.objecttypecode")?.Value);
@@ -163,10 +164,18 @@ namespace SecurityToolkit.Services
                     continue;
                 }
 
-                catalog[entity.Id] = new PrivilegeTarget { Table = table, Kind = kind };
+                if (!catalog.TryGetValue(entity.Id, out var targets))
+                {
+                    catalog[entity.Id] = targets = new List<PrivilegeTarget>();
+                }
+
+                if (!targets.Any(t => t.Kind == kind && string.Equals(t.Table, table, StringComparison.OrdinalIgnoreCase)))
+                {
+                    targets.Add(new PrivilegeTarget { Table = table, Kind = kind });
+                }
             }
 
-            return _catalog = catalog;
+            return _catalog = catalog.ToDictionary(p => p.Key, p => (IReadOnlyList<PrivilegeTarget>)p.Value);
         }
 
         /// <summary>
@@ -278,7 +287,8 @@ namespace SecurityToolkit.Services
                 return _deleteReach;
             }
 
-            var deleteTables = GetPrivilegeCatalog().Where(p => p.Value.Kind == PrivilegeKind.Delete).ToDictionary(p => p.Key, p => p.Value.Table);
+            var deleteTables = GetPrivilegeCatalog().Where(p => p.Value.Any(t => t.Kind == PrivilegeKind.Delete))
+                .ToDictionary(p => p.Key, p => p.Value.Where(t => t.Kind == PrivilegeKind.Delete).Select(t => t.Table).ToList());
             var privilegeIds = deleteTables.Keys.ToList();
             var tablesByRole = new Dictionary<Guid, HashSet<string>>();
 
@@ -304,7 +314,7 @@ namespace SecurityToolkit.Services
                     foreach (var row in RetrieveAll(query))
                     {
                         var roleId = row.GetAttributeValue<Guid>("roleid");
-                        if (!deleteTables.TryGetValue(row.GetAttributeValue<Guid>("privilegeid"), out var table))
+                        if (!deleteTables.TryGetValue(row.GetAttributeValue<Guid>("privilegeid"), out var deletable))
                         {
                             continue;
                         }
@@ -314,12 +324,15 @@ namespace SecurityToolkit.Services
                             tablesByRole[roleId] = tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         }
 
-                        tables.Add(table);
+                        foreach (var table in deletable)
+                        {
+                            tables.Add(table);
+                        }
                     }
                 }
             }
 
-            var totalTables = deleteTables.Values.Distinct(StringComparer.OrdinalIgnoreCase).Count();
+            var totalTables = deleteTables.Values.SelectMany(t => t).Distinct(StringComparer.OrdinalIgnoreCase).Count();
             return _deleteReach = new OrgDeleteReach(tablesByRole.ToDictionary(p => p.Key, p => p.Value.Count), totalTables);
         }
 

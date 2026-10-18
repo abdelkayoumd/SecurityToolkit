@@ -21,12 +21,12 @@ namespace SecurityToolkit.Tests
         private readonly Guid _writeAccount = Guid.NewGuid();
         private readonly Guid _readContact = Guid.NewGuid();
 
-        private IReadOnlyDictionary<Guid, PrivilegeTarget> Catalog => new Dictionary<Guid, PrivilegeTarget>
+        private IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> Catalog => new Dictionary<Guid, IReadOnlyList<PrivilegeTarget>>
         {
-            [_readAccount] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Read },
-            [_deleteAccount] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Delete },
-            [_writeAccount] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Write },
-            [_readContact] = new PrivilegeTarget { Table = "contact", Kind = PrivilegeKind.Read }
+            [_readAccount] = PrivilegeFake.Target("account", PrivilegeKind.Read),
+            [_deleteAccount] = PrivilegeFake.Target("account", PrivilegeKind.Delete),
+            [_writeAccount] = PrivilegeFake.Target("account", PrivilegeKind.Write),
+            [_readContact] = PrivilegeFake.Target("contact", PrivilegeKind.Read)
         };
 
         private static readonly TableInfo[] Tables =

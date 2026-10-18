@@ -28,7 +28,7 @@ namespace SecurityToolkit.Features
         private sealed class Loaded
         {
             public IReadOnlyList<TableInfo> Tables { get; set; }
-            public IReadOnlyDictionary<Guid, PrivilegeTarget> Catalog { get; set; }
+            public IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> Catalog { get; set; }
             public IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrant>> Grants { get; set; }
         }
 

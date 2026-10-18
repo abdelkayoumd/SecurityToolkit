@@ -79,7 +79,7 @@ namespace SecurityToolkit.Services
 
         public static IReadOnlyList<MatrixRow> Build(
             SecurityGraph graph, UserInfo user, IEnumerable<TableInfo> tables,
-            IReadOnlyDictionary<Guid, PrivilegeTarget> catalog,
+            IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> catalog,
             IReadOnlyDictionary<Guid, IReadOnlyList<RoleGrant>> grantsByRole, bool includeTablesWithoutAccess)
         {
             var best = new Dictionary<string, Dictionary<PrivilegeKind, PrivilegeDepth>>(Names);
@@ -92,25 +92,28 @@ namespace SecurityToolkit.Services
 
                 foreach (var grant in grants)
                 {
-                    if (grant.Depth == PrivilegeDepth.None || !catalog.TryGetValue(grant.PrivilegeId, out var target))
+                    if (grant.Depth == PrivilegeDepth.None || !catalog.TryGetValue(grant.PrivilegeId, out var targets))
                     {
                         continue;
                     }
 
-                    if (!best.TryGetValue(target.Table, out var byKind))
+                    foreach (var target in targets)
                     {
-                        best[target.Table] = byKind = new Dictionary<PrivilegeKind, PrivilegeDepth>();
-                    }
+                        if (!best.TryGetValue(target.Table, out var byKind))
+                        {
+                            best[target.Table] = byKind = new Dictionary<PrivilegeKind, PrivilegeDepth>();
+                        }
 
-                    if (!byKind.TryGetValue(target.Kind, out var existing) || grant.Depth > existing)
-                    {
-                        byKind[target.Kind] = grant.Depth;
+                        if (!byKind.TryGetValue(target.Kind, out var existing) || grant.Depth > existing)
+                        {
+                            byKind[target.Kind] = grant.Depth;
+                        }
                     }
                 }
             }
 
             // Which privileges exist at all for each table, so "not granted" can be told from "does not exist".
-            var knownPrivileges = new HashSet<(string, PrivilegeKind)>(catalog.Values.Select(t => (t.Table.ToLowerInvariant(), t.Kind)));
+            var knownPrivileges = new HashSet<(string, PrivilegeKind)>(catalog.Values.SelectMany(targets => targets).Select(t => (t.Table.ToLowerInvariant(), t.Kind)));
 
             var rows = new List<MatrixRow>();
             foreach (var table in tables.OrderBy(t => t.DisplayName, Names))

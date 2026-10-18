@@ -20,6 +20,9 @@ namespace SecurityToolkit.Tests
             ["otc.objecttypecode"] = new AliasedValue("privilegeobjecttypecodes", "objecttypecode", table)
         };
 
+        /// <summary>A privilege that stands for one action on one table.</summary>
+        public static IReadOnlyList<PrivilegeTarget> Target(string table, PrivilegeKind kind) => new[] { new PrivilegeTarget { Table = table, Kind = kind } };
+
         public static Entity Grant(Guid role, Guid privilege, int mask) => new Entity("roleprivileges") { ["roleid"] = role, ["privilegeid"] = privilege, ["privilegedepthmask"] = mask };
 
         /// <summary>
@@ -261,7 +264,7 @@ namespace SecurityToolkit.Tests
         {
             var catalog = new SecurityService(Fake("account")).GetPrivilegeCatalog();
 
-            Assert.Equal("account", Assert.Single(catalog).Value.Table);
+            Assert.Equal("account", Assert.Single(Assert.Single(catalog).Value).Table);
         }
 
         [Fact]
@@ -269,7 +272,7 @@ namespace SecurityToolkit.Tests
         {
             var catalog = new SecurityService(Fake(1)).GetPrivilegeCatalog();
 
-            Assert.Equal("account", Assert.Single(catalog).Value.Table);
+            Assert.Equal("account", Assert.Single(Assert.Single(catalog).Value).Table);
         }
 
         [Fact]
@@ -277,7 +280,20 @@ namespace SecurityToolkit.Tests
         {
             var catalog = new SecurityService(Fake(new OptionSetValue(1))).GetPrivilegeCatalog();
 
-            Assert.Equal("account", Assert.Single(catalog).Value.Table);
+            Assert.Equal("account", Assert.Single(Assert.Single(catalog).Value).Table);
+        }
+
+        [Fact]
+        public void APrivilegeThatStandsForSeveralTables_KeepsEveryOne()
+        {
+            var shared = Guid.NewGuid();
+            var fake = PrivilegeFake.Serve(
+                new[] { PrivilegeFake.Privilege(shared, 1, "account"), PrivilegeFake.Privilege(shared, 1, "customeraddress"), PrivilegeFake.Privilege(shared, 1, "account") },
+                new Entity[0]);
+
+            var targets = new SecurityService(fake).GetPrivilegeCatalog()[shared];
+
+            Assert.Equal(new[] { "account", "customeraddress" }, targets.Select(t => t.Table).OrderBy(t => t));
         }
 
         [Fact]

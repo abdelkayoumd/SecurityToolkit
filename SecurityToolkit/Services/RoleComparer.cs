@@ -58,7 +58,7 @@ namespace SecurityToolkit.Services
 
         public static IReadOnlyList<RoleDiffRow> Compare(
             RoleRow a, RoleRow b, IEnumerable<TableInfo> tables,
-            IReadOnlyDictionary<Guid, PrivilegeTarget> catalog,
+            IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> catalog,
             IReadOnlyList<RoleGrant> grantsA, IReadOnlyList<RoleGrant> grantsB)
         {
             var labels = Labels(a, b);
@@ -104,20 +104,23 @@ namespace SecurityToolkit.Services
                    $"{reach} with a different reach, {same} the same.";
         }
 
-        private static Dictionary<(string, PrivilegeKind), PrivilegeDepth> Widest(IEnumerable<RoleGrant> grants, IReadOnlyDictionary<Guid, PrivilegeTarget> catalog)
+        private static Dictionary<(string, PrivilegeKind), PrivilegeDepth> Widest(IEnumerable<RoleGrant> grants, IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> catalog)
         {
             var widest = new Dictionary<(string, PrivilegeKind), PrivilegeDepth>();
             foreach (var grant in grants)
             {
-                if (grant.Depth == PrivilegeDepth.None || !catalog.TryGetValue(grant.PrivilegeId, out var target))
+                if (grant.Depth == PrivilegeDepth.None || !catalog.TryGetValue(grant.PrivilegeId, out var targets))
                 {
                     continue;
                 }
 
-                var key = (target.Table.ToLowerInvariant(), target.Kind);
-                if (!widest.TryGetValue(key, out var existing) || grant.Depth > existing)
+                foreach (var target in targets)
                 {
-                    widest[key] = grant.Depth;
+                    var key = (target.Table.ToLowerInvariant(), target.Kind);
+                    if (!widest.TryGetValue(key, out var existing) || grant.Depth > existing)
+                    {
+                        widest[key] = grant.Depth;
+                    }
                 }
             }
 

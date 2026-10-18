@@ -14,13 +14,13 @@ namespace SecurityToolkit.Tests
         private readonly Org _o = new Org();
         private readonly Guid _accountRead = Guid.NewGuid(), _accountDelete = Guid.NewGuid(), _contactRead = Guid.NewGuid(), _unknown = Guid.NewGuid();
 
-        private IReadOnlyDictionary<Guid, PrivilegeTarget> Catalog()
+        private IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> Catalog()
         {
-            return new Dictionary<Guid, PrivilegeTarget>
+            return new Dictionary<Guid, IReadOnlyList<PrivilegeTarget>>
             {
-                [_accountRead] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Read },
-                [_accountDelete] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Delete },
-                [_contactRead] = new PrivilegeTarget { Table = "contact", Kind = PrivilegeKind.Read }
+                [_accountRead] = PrivilegeFake.Target("account", PrivilegeKind.Read),
+                [_accountDelete] = PrivilegeFake.Target("account", PrivilegeKind.Delete),
+                [_contactRead] = PrivilegeFake.Target("contact", PrivilegeKind.Read)
             };
         }
 
@@ -137,7 +137,7 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void TableNamesMatchWithoutRegardToCase()
         {
-            var catalog = new Dictionary<Guid, PrivilegeTarget> { [_accountRead] = new PrivilegeTarget { Table = "ACCOUNT", Kind = PrivilegeKind.Read } };
+            var catalog = new Dictionary<Guid, IReadOnlyList<PrivilegeTarget>> { [_accountRead] = PrivilegeFake.Target("ACCOUNT", PrivilegeKind.Read) };
 
             var rows = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, catalog, Grants(), false);
 
@@ -151,7 +151,7 @@ namespace SecurityToolkit.Tests
         [InlineData((int)PrivilegeDepth.Organization, "Organization")]
         public void TheCellsUseTheWordsTheSecurityRoleEditorUses(int depth, string expected)
         {
-            var catalog = new Dictionary<Guid, PrivilegeTarget> { [_accountRead] = new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Read } };
+            var catalog = new Dictionary<Guid, IReadOnlyList<PrivilegeTarget>> { [_accountRead] = PrivilegeFake.Target("account", PrivilegeKind.Read) };
             var grants = new Dictionary<Guid, IReadOnlyList<RoleGrant>> { [_o.Admin.Id] = new[] { Grant(_accountRead, (PrivilegeDepth)depth) } };
 
             var row = AccessMatrixBuilder.Build(_o.Graph, _o.Ada, Tables, catalog, grants, false).Single();
@@ -190,12 +190,12 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void EveryOneOfTheEightPrivilegesHasItsOwnColumn()
         {
-            var catalog = new Dictionary<Guid, PrivilegeTarget>();
+            var catalog = new Dictionary<Guid, IReadOnlyList<PrivilegeTarget>>();
             var grants = new List<RoleGrant>();
             foreach (PrivilegeKind kind in Enum.GetValues(typeof(PrivilegeKind)))
             {
                 var id = Guid.NewGuid();
-                catalog[id] = new PrivilegeTarget { Table = "account", Kind = kind };
+                catalog[id] = PrivilegeFake.Target("account", kind);
                 grants.Add(Grant(id, PrivilegeDepth.BusinessUnit));
             }
 
@@ -230,10 +230,10 @@ namespace SecurityToolkit.Tests
 
             var catalog = new SecurityService(fake).GetPrivilegeCatalog();
 
-            Assert.Equal(PrivilegeKind.Read, catalog[read].Kind);
-            Assert.Equal("account", catalog[read].Table);
-            Assert.Equal(PrivilegeKind.Delete, catalog[delete].Kind);
-            Assert.Equal("contact", catalog[delete].Table);
+            Assert.Equal(PrivilegeKind.Read, catalog[read].Single().Kind);
+            Assert.Equal("account", catalog[read].Single().Table);
+            Assert.Equal(PrivilegeKind.Delete, catalog[delete].Single().Kind);
+            Assert.Equal("contact", catalog[delete].Single().Table);
         }
 
         [Fact]
@@ -340,6 +340,33 @@ namespace SecurityToolkit.Tests
         public void AnUnknownAccessRight_IsNotAKind()
         {
             Assert.False(Privileges.TryKind(8, out _));
+        }
+    }
+}
+
+namespace SecurityToolkit.Tests
+{
+    public class SharedPrivilegeMatrixTests
+    {
+        [Fact]
+        public void APrivilegeThatStandsForTwoTables_ShowsOnBoth_NotJustTheLastOne()
+        {
+            var read = Guid.NewGuid();
+            var role = new RoleInfo { Id = Guid.NewGuid(), Name = "R" };
+            var user = new UserInfo { Id = Guid.NewGuid(), FullName = "U" };
+            var graph = new SecurityGraph(new[] { user }, new[] { role }, new TeamInfo[0], new BusinessUnitInfo[0],
+                new UserTeamLink[0], new[] { new UserRoleLink { UserId = user.Id, RoleId = role.Id } }, new TeamRoleLink[0]);
+            var catalog = new Dictionary<Guid, IReadOnlyList<PrivilegeTarget>>
+            {
+                [read] = new[] { new PrivilegeTarget { Table = "account", Kind = PrivilegeKind.Read }, new PrivilegeTarget { Table = "customeraddress", Kind = PrivilegeKind.Read } }
+            };
+            var grants = new Dictionary<Guid, IReadOnlyList<RoleGrant>> { [role.Id] = new[] { new RoleGrant { PrivilegeId = read, Depth = PrivilegeDepth.ParentChildBusinessUnits } } };
+            var tables = new[] { new TableInfo { LogicalName = "account", DisplayName = "Account" }, new TableInfo { LogicalName = "customeraddress", DisplayName = "Customer Address" } };
+
+            var rows = AccessMatrixBuilder.Build(graph, user, tables, catalog, grants, includeTablesWithoutAccess: true);
+
+            Assert.All(rows, r => Assert.Equal("Parent: Child Business Units", r.Read));
+            Assert.Equal(2, rows.Count);
         }
     }
 }
