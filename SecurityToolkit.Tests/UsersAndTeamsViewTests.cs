@@ -119,7 +119,8 @@ namespace SecurityToolkit.Tests
             WithSelection(new[] { "Bob" }, (view, tree) =>
             {
                 var bob = Assert.Single(tree.Nodes.Cast<TreeNode>());
-                Assert.Equal("Bob", bob.Text);
+                Assert.Equal("Bob - Sales", bob.Text);
+                Assert.True(bob.NodeFont != null && bob.NodeFont.Bold, "The user is shown in bold.");
                 Assert.Equal(new[] { "Direct roles (1)", "Teams (2)" }, Texts(bob.Nodes));
 
                 var direct = bob.Nodes[0];
@@ -169,11 +170,41 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
+        public void TeamsSayWhichBusinessUnitTheyAreIn_RolesStayPlain()
+        {
+            Sta.Run(() =>
+            {
+                var org = new TreeOrg();
+                var view = new UsersAndTeamsFeature().CreateView(new TestHost { Security = new SecurityToolkit.Services.SecurityService(OrgFake.Serve(org.Graph)) });
+                var form = new Form { Size = new Size(1000, 500) };
+                form.Controls.Add(view);
+                form.Show();
+                Application.DoEvents();
+                Click(Button(view, "Load users"));
+                var grid = (DataGridView)Sta.Find(view, c => c is DataGridView);
+                foreach (DataGridViewRow row in grid.Rows)
+                {
+                    row.Selected = ((SecurityToolkit.Models.UserInfo)row.DataBoundItem).FullName == "Ada";
+                }
+
+                Click(Button(view, "Show teams"));
+                var ada = ((TreeView)Sta.Find(view, c => c is TreeView)).Nodes[0];
+
+                Assert.Equal("Ada - Root", ada.Text);
+                Assert.Equal(new[] { "Admin" }, Texts(ada.Nodes[0].Nodes));                       // a role: the name only
+                var team = ada.Nodes[1].Nodes[0];
+                Assert.Equal("Alpha - Root", team.Text);                                          // a team: with its business unit
+                Assert.Equal(new[] { "Auditor" }, Texts(team.Nodes));
+                form.Dispose();
+            });
+        }
+
+        [Fact]
         public void Tree_ShowsSeveralSelectedUsersAsSeparateBranches()
         {
             WithSelection(new[] { "Ada", "Bob" }, (view, tree) =>
             {
-                Assert.Equal(new[] { "Ada", "Bob" }, Texts(tree.Nodes));
+                Assert.Equal(new[] { "Ada - Root", "Bob - Sales" }, Texts(tree.Nodes));
                 Assert.Equal(new[] { "Admin" }, Texts(tree.Nodes[0].Nodes[0].Nodes));
             });
         }

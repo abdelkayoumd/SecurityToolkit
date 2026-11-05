@@ -324,7 +324,7 @@ namespace SecurityToolkit.Tests
                 LoadedWithoutSelection("users-and-teams");
                 MasterDetailHarness.Select<UserInfo>(Grids("users-and-teams")[0], u => u.FullName == "Chen Wei");
                 var tree = FindControls<TreeView>(views["users-and-teams"]).Single();
-                Until(() => tree.Nodes.Count == 1 && tree.Nodes[0].Text == "Chen Wei");
+                Until(() => tree.Nodes.Count == 1 && tree.Nodes[0].Text.StartsWith("Chen Wei"));
                 Capture("users-and-teams");
 
                 // Compare two users.

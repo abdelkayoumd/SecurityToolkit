@@ -187,7 +187,10 @@ namespace SecurityToolkit.Features
             /// </summary>
             private TreeNode BuildUserNode(UserInfo user)
             {
-                var userNode = Node(user.FullName, TreeIcons.User, "User");
+                // The user stands out in bold, and users and teams say which business unit they are in. Roles do not: a role is a copy in some business unit, which only confuses.
+                var userNode = Node(WithBusinessUnit(user.FullName, user.BusinessUnitName), TreeIcons.User, "User");
+                userNode.NodeFont = Theme.FontBold;
+                userNode.Text = userNode.Text; // re-set so the tree measures the bold text, or it is clipped
 
                 var directRoles = Graph.DirectRolesOf(user.Id);
                 var directNode = Node($"Direct roles ({directRoles.Count})", TreeIcons.DirectRolesGroup, "Security roles assigned to the user themselves");
@@ -200,7 +203,7 @@ namespace SecurityToolkit.Features
                 var teamsNode = Node($"Teams ({teams.Count})", TreeIcons.TeamsGroup, "Teams the user belongs to; a team's roles apply to all its members");
                 foreach (var team in teams)
                 {
-                    var teamNode = Node(team.Name, TreeIcons.Team, team.TypeName + " team");
+                    var teamNode = Node(WithBusinessUnit(team.Name, team.BusinessUnitName), TreeIcons.Team, team.TypeName + " team");
                     foreach (var role in Graph.RolesOfTeam(team.Id))
                     {
                         teamNode.Nodes.Add(Node(role.Name, TreeIcons.InheritedRole, $"Inherited from team {team.Name}"));
@@ -212,6 +215,12 @@ namespace SecurityToolkit.Features
                 userNode.Nodes.Add(directNode);
                 userNode.Nodes.Add(teamsNode);
                 return userNode;
+            }
+
+            /// <summary>"Name - Business unit"; just the name when the business unit is not known.</summary>
+            internal static string WithBusinessUnit(string name, string businessUnit)
+            {
+                return string.IsNullOrWhiteSpace(businessUnit) ? name : name + " - " + businessUnit;
             }
 
             private static TreeNode Node(string text, int icon, string toolTip)
