@@ -159,6 +159,13 @@ namespace SecurityToolkit.UI
 
         public int SelectedCount => _grid.SelectedRows.Count;
 
+        /// <summary>Whether several rows can be selected (Ctrl or Shift). Screens that work on one thing at a time turn it off.</summary>
+        public bool MultiSelect
+        {
+            get => _grid.MultiSelect;
+            set => _grid.MultiSelect = value;
+        }
+
         /// <summary>Draws the content of a body cell. Returns false to leave the cell to the grid's own painting.</summary>
         public delegate bool CellRenderer(Graphics graphics, Rectangle bounds, string text, bool selected);
 

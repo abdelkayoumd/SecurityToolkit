@@ -46,6 +46,8 @@ namespace SecurityToolkit.Features
                 // The look of the Dynamics 365 security role editor: an icon and the depth in words in every cell.
                 Grid.BodyCellRenderer = DepthCell.Paint;
                 Grid.RowHeight = 36;
+                // One user at a time: the matrix is about a single user's access.
+                Master.MultiSelect = false;
                 // The user name is not a column; it shows when the mouse rests on the full name.
                 Master.CellToolTip = (item, column) => column == "FullName" && item is UserInfo user ? user.DomainName : null;
                 InfoLabel.Text = "Connect to an environment to get started.";
@@ -110,12 +112,6 @@ namespace SecurityToolkit.Features
                 if (picked.Count == 0)
                 {
                     // Only cleared (by a filter, say): keep showing the last user.
-                    return;
-                }
-
-                if (picked.Count > 1)
-                {
-                    InfoLabel.Text = "Select one user to see what they can do.";
                     return;
                 }
 

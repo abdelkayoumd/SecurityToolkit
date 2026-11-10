@@ -190,7 +190,7 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void SelectingSeveralUsers_AsksForOne_AndKeepsTheLastMatrix()
+        public void OnlyOneUserCanBeSelected_SoTryingForSeveralLeavesTheLastOne()
         {
             Run((view, users, matrix) =>
             {
@@ -198,10 +198,12 @@ namespace SecurityToolkit.Tests
                 TeamMembersViewTests.Pump(() => matrix.GetVisible<MatrixRow>().Any());
                 var shown = matrix.GetVisible<MatrixRow>().Count();
 
-                MasterDetailHarness.Select<UserInfo>(users, u => true);
-                TeamMembersViewTests.Pump(() => Info(view, "Select one user") != null);
+                Assert.False(users.MultiSelect);
 
-                Assert.Equal(shown, matrix.GetVisible<MatrixRow>().Count());
+                MasterDetailHarness.Select<UserInfo>(users, u => true);
+
+                Assert.Equal(1, users.SelectedCount);
+                Assert.Equal(shown > 0, matrix.GetVisible<MatrixRow>().Any());
             });
         }
 

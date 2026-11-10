@@ -56,7 +56,12 @@ namespace SecurityToolkit.Tests
             var data = (DataGridView)Sta.Find(grid, c => c is DataGridView);
             foreach (DataGridViewRow row in data.Rows)
             {
-                row.Selected = pick((T)row.DataBoundItem);
+                // Only touch rows whose state changes: a single-select grid reacts to every assignment, even a redundant one.
+                var want = pick((T)row.DataBoundItem);
+                if (row.Selected != want)
+                {
+                    row.Selected = want;
+                }
             }
         }
 

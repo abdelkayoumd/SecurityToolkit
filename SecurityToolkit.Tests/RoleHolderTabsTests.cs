@@ -85,7 +85,7 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void OutsideTheTabs_NothingIsHit_AtTheRightEdge()
+        public void OutsideTheTabs_NothingIsHit()
         {
             Sta.Run(() => Assert.Equal(-1, Strip().TabAt(new Point(590, 10))));
         }
