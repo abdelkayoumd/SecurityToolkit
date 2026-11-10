@@ -26,14 +26,39 @@ namespace SecurityToolkit.Features
         {
             private IReadOnlyList<RoleChoice> _roles = new RoleChoice[0];
             private CheckBox _chkDisabled;
+            private readonly TabStrip _tabs;
+            private readonly FilterableGrid _teamsGrid;
 
             public UsersByRoleView(IFeatureHost host)
                 : base(host, "Security roles (Ctrl/Shift-click to select several)", "Users who have the role")
             {
+                // Two answers about a role: which users have it, and which teams hold it. Tabs, with the counts in their titles.
+                _tabs = new TabStrip { Name = "RoleHolderTabs" };
+                _tabs.AddTab(UsersTab);
+                _tabs.AddTab(TeamsTab);
+                _teamsGrid = new FilterableGrid { Visible = false, EmptyMessage = "No team holds the selected roles." };
+
+                var side = Grid.Parent;
+                var heading = side.Controls.OfType<Label>().First();
+                heading.Visible = false; // the tabs replace it
+                side.Controls.Remove(Grid);
+                var results = new Panel { Dock = DockStyle.Fill };
+                results.Controls.Add(Grid);
+                results.Controls.Add(_teamsGrid);
+                side.Controls.Add(results);
+                side.Controls.Add(_tabs); // the last control added is laid out first, so the tabs sit above the lists
+                _tabs.SelectedIndexChanged += (s, e) =>
+                {
+                    Grid.Visible = _tabs.SelectedIndex == 0;
+                    _teamsGrid.Visible = _tabs.SelectedIndex == 1;
+                };
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
             protected override string PromptText => "Select one or more security roles on the left to see who has them.";
+
+            private const string UsersTab = "Users who have the role";
+            private const string TeamsTab = "Teams who have the role";
 
             protected override IEnumerable<Control> CreateCommands()
             {
@@ -42,7 +67,7 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphSelectAll, "Select all roles", Master.SelectAll);
                 yield return Command(Theme.GlyphClearSelection, "Clear selection", Master.ClearSelection);
                 yield return CommandSeparator();
-                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "UsersByRole.xlsx", "Users by role"));
+                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, _tabs.SelectedIndex == 0 ? Grid : _teamsGrid, _tabs.SelectedIndex == 0 ? "UsersByRole.xlsx" : "TeamsByRole.xlsx", _tabs.SelectedIndex == 0 ? "Users by role" : "Teams by role"));
                 _chkDisabled = CommandCheck("Include disabled users", ShowUsers);
                 yield return _chkDisabled;
             }
@@ -50,6 +75,9 @@ namespace SecurityToolkit.Features
             protected override void Reset()
             {
                 _roles = new RoleChoice[0];
+                _tabs.SetText(0, UsersTab);
+                _tabs.SetText(1, TeamsTab);
+                _teamsGrid.SetData(new object[0]);
                 base.Reset();
             }
 
@@ -95,9 +123,14 @@ namespace SecurityToolkit.Features
                 var rows = _roles.SelectMany(role => Graph.UsersInRole(role.RootKey, includeDisabled)).ToList();
                 Grid.SetData(rows, "Role", "User", "Domain", "BusinessUnit=Business Unit", "Assignment", "Team", "Status");
 
+                var teamRows = _roles.SelectMany(role => Graph.TeamsInRole(role.RootKey)).ToList();
+                _teamsGrid.SetData(teamRows, "Role", "Team", "TeamType=Team type", "BusinessUnit=Business Unit", "Members");
+
                 var users = rows.Select(r => r.User + "|" + r.Domain).Distinct().Count();
                 var direct = rows.Count(r => r.Assignment == "Direct");
-                InfoLabel.Text = $"{_roles.Count} role(s): {users} user(s), {direct} direct assignment(s), {rows.Count - direct} through a team";
+                InfoLabel.Text = $"{_roles.Count} role(s): {users} user(s), {direct} direct assignment(s), {rows.Count - direct} through a team; held by {teamRows.Count} team(s)";
+                _tabs.SetText(0, $"{UsersTab} ({users})");
+                _tabs.SetText(1, $"{TeamsTab} ({teamRows.Count})");
             }
         }
     }

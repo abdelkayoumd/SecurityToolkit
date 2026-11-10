@@ -50,8 +50,8 @@ namespace SecurityToolkit.Features
             {
                 FeatureId = "users-by-role", Section = GuideSection.LookUp,
                 Question = "Who holds this security role?",
-                Summary = "Pick roles and see every user who has them, directly or through a team.",
-                Steps = new[] { "Select one or more roles on the left.", "The users who hold them appear on the right, with how they hold each role.", "Export to Excel to keep the list." }
+                Summary = "Pick roles and see every user who has them, directly or through a team, and the teams that hold them.",
+                Steps = new[] { "Select one or more roles on the left.", "The Users tab lists everyone who has them, with how each user holds the role. The Teams tab lists the teams that hold them.", "Export to Excel exports the tab you are on." }
             },
             new GuideEntry
             {

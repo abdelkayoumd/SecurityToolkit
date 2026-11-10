@@ -327,6 +327,13 @@ namespace SecurityToolkit.Tests
                 Until(() => tree.Nodes.Count == 1 && tree.Nodes[0].Text.StartsWith("Chen Wei"));
                 Capture("users-and-teams");
 
+                // Role holders: who has a role, and which teams hold it.
+                Open("users-by-role");
+                LoadedWithoutSelection("users-by-role");
+                MasterDetailHarness.Select<RoleChoice>(Grids("users-by-role")[0], r => r.Name == "Sales Manager" || r.Name == "Salesperson");
+                Until(() => Grids("users-by-role")[1].GetVisible<RoleUserRow>().Any());
+                Capture("role-holders");
+
                 // Compare two users.
                 Open("compare-users");
                 LoadedWithoutSelection("compare-users");

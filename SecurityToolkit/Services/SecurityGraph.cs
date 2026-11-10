@@ -17,6 +17,16 @@ namespace SecurityToolkit.Services
         public string Status { get; set; }
     }
 
+    /// <summary>A team that holds a role: which team, what kind, where, and how many members get the role through it.</summary>
+    internal sealed class RoleTeamRow
+    {
+        public string Role { get; set; }
+        public string Team { get; set; }
+        public string TeamType { get; set; }
+        public string BusinessUnit { get; set; }
+        public int Members { get; set; }
+    }
+
     /// <summary>One line of a side-by-side comparison of two users.</summary>
     internal sealed class CompareRow
     {
@@ -181,6 +191,16 @@ namespace SecurityToolkit.Services
             }
 
             return rows.OrderBy(r => r.User, Names).ThenBy(r => r.Assignment).ThenBy(r => r.Team, Names).ToList();
+        }
+
+        /// <summary>The teams that hold a role (in any of its business-unit copies), with how many members each has.</summary>
+        public IReadOnlyList<RoleTeamRow> TeamsInRole(Guid roleRootKey)
+        {
+            var roleIds = new HashSet<Guid>(Roles.Where(r => r.RootKey == roleRootKey).Select(r => r.Id));
+            var roleName = Roles.FirstOrDefault(r => r.RootKey == roleRootKey)?.Name ?? string.Empty;
+            return Teams.Where(t => _roleIdsByTeam[t.Id].Any(roleIds.Contains))
+                .Select(t => new RoleTeamRow { Role = roleName, Team = t.Name, TeamType = t.TypeName, BusinessUnit = t.BusinessUnitName, Members = MembersOf(t.Id).Count })
+                .OrderBy(r => r.Team, Names).ToList();
         }
 
         public IReadOnlyList<TeamMemberRow> TeamMembers(IEnumerable<Guid> teamIds, bool includeDisabled)

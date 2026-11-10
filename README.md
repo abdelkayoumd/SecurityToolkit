@@ -14,8 +14,7 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
 
 - **Users and teams** – pick users and see a tree of their direct roles and their teams, with the roles each
   team gives them. Green keys are assigned directly, orange keys are inherited from a team.
-- **Teams and members, Role holders** – pick teams or roles and see who is in them or who holds them, with each
-  user's teams, direct roles and inherited roles.
+- **Teams and members, Role holders** – pick teams to see their members, or roles to see who holds them: a Users tab (directly or through a team) and a Teams tab (the teams that hold the role, with their member counts), each with its count in the tab title.
 - **Business units** – the business-unit hierarchy as a tree, each unit with how many users and teams it holds
   (and how many including its children). Select a unit and choose what to list: its users with their teams and
   roles, its teams, or the security roles in use there. Include child units, and export the list or the users in
@@ -71,6 +70,10 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
 **Browse the business-unit hierarchy**
 
 ![The business unit tree with the contents of a unit](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/business-unit-tree.png)
+
+**See who holds a role, and which teams hold it**
+
+![Role holders: a Users tab and a Teams tab with counts](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/role-holders.png)
 
 **Compare two security roles**
 
