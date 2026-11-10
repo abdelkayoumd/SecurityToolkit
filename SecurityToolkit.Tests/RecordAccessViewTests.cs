@@ -331,7 +331,7 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
-        public void OnlyOneUserOrTeamCanBeSelected()
+        public void OnlyOneUserOrTeamCanBeSelectedAtATime()
         {
             Run((scene, view, users, access, host) =>
             {
