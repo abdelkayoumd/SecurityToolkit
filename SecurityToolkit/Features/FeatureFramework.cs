@@ -140,6 +140,7 @@ namespace SecurityToolkit.Features
                 new BusinessUnitTreeFeature(),
                 new PrivilegeFinderFeature(),
                 new ExplainAccessFeature(),
+                new RecordAccessFeature(),
                 new UserAccessMatrixFeature(),
                 new PrivilegedUsersFeature(),
                 new CleanupReportFeature(),

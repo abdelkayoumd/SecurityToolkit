@@ -25,7 +25,8 @@ namespace SecurityToolkit.Tests
         }
 
         public Guid Create(Entity entity) => throw new NotSupportedException();
-        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet) => throw new NotSupportedException();
+        public Func<string, Guid, ColumnSet, Entity> OnRetrieve { get; set; } = (n, i, c) => throw new NotSupportedException();
+        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet) => OnRetrieve(entityName, id, columnSet);
         public void Update(Entity entity) => throw new NotSupportedException();
         public void Delete(string entityName, Guid id) => throw new NotSupportedException();
         public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) => throw new NotSupportedException();

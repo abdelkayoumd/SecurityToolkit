@@ -175,7 +175,8 @@ namespace SecurityToolkit.Tests
 
             Assert.Equal(FeatureGroup.UnderstandAccess, new ExplainAccessFeature().Group);
             Assert.Equal(ids.IndexOf("user-access-matrix") + 1, ids.IndexOf("explain-access"));
-            Assert.Equal(ids.IndexOf("explain-access") + 1, ids.IndexOf("privilege-finder"));
+            Assert.Equal(ids.IndexOf("explain-access") + 1, ids.IndexOf("record-access"));
+            Assert.Equal(ids.IndexOf("record-access") + 1, ids.IndexOf("privilege-finder"));
         }
     }
 }

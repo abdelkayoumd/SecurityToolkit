@@ -97,7 +97,7 @@ namespace SecurityToolkit.Tests
                 {
                     "Home",
                     "#LOOK UP", "Users and teams", "Teams and members", "Role holders", "Business units",
-                    "#UNDERSTAND ACCESS", "A user's access", "Explain access", "Privilege finder",
+                    "#UNDERSTAND ACCESS", "A user's access", "Explain access", "Record access", "Privilege finder",
                     "#COMPARE", "Two users", "Two roles",
                     "#REVIEW", "Privileged users", "Cleanup report",
                     "#CHANGE", "Roles for users", "Roles for teams", "Team membership", "Clone a user"

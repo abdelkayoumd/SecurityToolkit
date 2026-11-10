@@ -83,6 +83,13 @@ namespace SecurityToolkit.Features
             },
             new GuideEntry
             {
+                FeatureId = "record-access", Section = GuideSection.UnderstandAccess,
+                Question = "Can this user open this record?",
+                Summary = "Pick a record and a user or team: for each right, whether they have it and why, and who the record is shared with.",
+                Steps = new[] { "Choose the table, then paste a record link or id (or type part of a name and press Find).", "Select a user or a team on the left; \"Check access for\" in the command bar switches between them.", "Each row says whether the right is held and why: the role that reaches the record, a share, or what falls short. The Shared with tab lists everyone the record is shared with." }
+            },
+            new GuideEntry
+            {
                 FeatureId = "privilege-finder", Section = GuideSection.UnderstandAccess,
                 Question = "Which roles let people delete on a table?",
                 Summary = "Pick a privilege, a depth and tables, and see which roles grant it.",

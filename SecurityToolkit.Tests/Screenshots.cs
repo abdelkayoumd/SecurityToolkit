@@ -7,7 +7,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
+using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using SecurityToolkit.Features;
@@ -26,6 +28,9 @@ namespace SecurityToolkit.Tests
         public readonly Dictionary<string, TeamInfo> Teams = new Dictionary<string, TeamInfo>();
         public readonly Dictionary<string, BusinessUnitInfo> BusinessUnits = new Dictionary<string, BusinessUnitInfo>();
         public SecurityGraph Graph;
+
+        /// <summary>The demo account record used by the "Record access" screenshot.</summary>
+        public static readonly Guid RecordId = new Guid("6f1d1b8e-3c52-4a31-9d52-0a8d2f4c7b10");
 
         private readonly List<UserTeamLink> _memberships = new List<UserTeamLink>();
         private readonly List<UserRoleLink> _userRoles = new List<UserRoleLink>();
@@ -257,6 +262,47 @@ namespace SecurityToolkit.Tests
                 };
                 return response;
             };
+            // One record to check access to: the account "Contoso Ltd", owned by Liam O'Brien in Contoso EMEA and shared with
+            // the Sales - Americas team for reading.
+            var liam = Users["Liam O'Brien"];
+            var emeaUnit = BusinessUnits["Contoso EMEA"];
+            var sharedWith = Teams["Sales - Americas"];
+            var servedBefore = service.OnRetrieveMultiple;
+            service.OnRetrieveMultiple = q => ((QueryExpression)q).EntityName == "account"
+                ? new EntityCollection(new List<Entity> { new Entity("account", RecordId) { ["name"] = "Contoso Ltd" } })
+                : servedBefore(q);
+            service.OnRetrieve = (table, id, columns) => new Entity(table, id)
+            {
+                ["name"] = "Contoso Ltd",
+                ["ownerid"] = new EntityReference("systemuser", liam.Id) { Name = liam.FullName },
+                ["owningbusinessunit"] = new EntityReference("businessunit", emeaUnit.Id) { Name = emeaUnit.Name }
+            };
+            var executeBefore = service.OnExecute;
+            service.OnExecute = request =>
+            {
+                switch (request)
+                {
+                    case RetrieveEntityRequest _:
+                        var meta = new EntityMetadata { LogicalName = "account", DisplayName = new Microsoft.Xrm.Sdk.Label(new LocalizedLabel("Account", 1033), new LocalizedLabel[0]) };
+                        typeof(EntityMetadata).GetProperty("OwnershipType").GetSetMethod(true).Invoke(meta, new object[] { (OwnershipTypes?)OwnershipTypes.UserOwned });
+                        typeof(EntityMetadata).GetProperty("PrimaryNameAttribute").GetSetMethod(true).Invoke(meta, new object[] { "name" });
+                        var entity = new RetrieveEntityResponse();
+                        entity.Results["EntityMetadata"] = meta;
+                        return entity;
+                    case RetrievePrincipalAccessRequest access:
+                        // Priya can read it only because of the share; Contoso EMEA is outside her business unit.
+                        var rights = new RetrievePrincipalAccessResponse();
+                        rights.Results["AccessRights"] = access.Principal.Id == Users["Priya Nair"].Id ? AccessRights.ReadAccess : AccessRights.None;
+                        return rights;
+                    case RetrieveSharedPrincipalsAndAccessRequest _:
+                        var shared = new RetrieveSharedPrincipalsAndAccessResponse();
+                        shared.Results["PrincipalAccesses"] = new[] { new PrincipalAccess { Principal = new EntityReference("team", sharedWith.Id) { Name = sharedWith.Name }, AccessMask = AccessRights.ReadAccess } };
+                        return shared;
+                    default:
+                        return executeBefore(request);
+                }
+            };
+
             return service;
         }
     }
@@ -376,6 +422,19 @@ namespace SecurityToolkit.Tests
                 MasterDetailHarness.Select<UserInfo>(Grids("explain-access")[0], u => u.FullName == "Chen Wei");
                 Until(() => Grids("explain-access")[1].GetVisible<AccessReasonRow>().Any());
                 Capture("explain-access");
+
+                // Record access: can Priya (Contoso Americas) reach an account that sits in Contoso EMEA? Only through a share.
+                Open("record-access");
+                Until(() => Grids("record-access")[0].GetVisible<PrincipalRow>().Any());
+                var recordView = views["record-access"];
+                var tableBox = FindControls<ComboBox>(recordView).Single(c => c.Name == "RecordTable");
+                tableBox.SelectedIndex = Enumerable.Range(0, tableBox.Items.Count).First(i => tableBox.Items[i].ToString().StartsWith("Account"));
+                FindControls<TextBox>(recordView).Single(c => c.Name == "RecordText").Text = "Contoso";
+                FindControls<Button>(recordView).Single(c => c.Name == "FindRecord").PerformClick();
+                Until(() => FindControls<TabStrip>(recordView).Single().Tabs[1].Contains("(1)"));
+                MasterDetailHarness.Select<PrincipalRow>(Grids("record-access")[0], u => u.Name == "Priya Nair");
+                Until(() => Grids("record-access").Any(g => g.GetVisible<RecordAccessRow>().Count == 7));
+                Capture("record-access");
 
                 // What can a user do? Chen Wei is a sales manager who also sits in a sales team. Eight privilege columns
                 // with icons need a wider window than the other screens, so this one is taken on a larger screen.

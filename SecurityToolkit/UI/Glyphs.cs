@@ -21,6 +21,7 @@ namespace SecurityToolkit.UI
         public const string Compare = "";
         public const string Help = "";
         public const string Shield = "";
+        public const string RecordAccess = "";
         public const string Grid = "";
         public const string Team = "";
         public const string TeamShield = "";

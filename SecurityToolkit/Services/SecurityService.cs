@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
@@ -31,6 +32,7 @@ namespace SecurityToolkit.Services
         private IReadOnlyList<TableInfo> _tables;
         private readonly Dictionary<int, string> _typeCodes = new Dictionary<int, string>();
         private readonly Dictionary<string, IReadOnlyList<Guid>> _privilegeIds = new Dictionary<string, IReadOnlyList<Guid>>();
+        private readonly Dictionary<string, TableDetails> _tableDetails = new Dictionary<string, TableDetails>(StringComparer.OrdinalIgnoreCase);
 
         public SecurityService(IOrganizationService service)
         {
@@ -52,6 +54,7 @@ namespace SecurityToolkit.Services
             _roleGrants.Clear();
             _typeCodes.Clear();
             _privilegeIds.Clear();
+            _tableDetails.Clear();
         }
 
         /// <summary>Everything the read-only features need, loaded once (paged) and cached until <see cref="Invalidate"/>.</summary>
@@ -424,6 +427,130 @@ namespace SecurityToolkit.Services
                 PrivilegeRows = byRole.Sum(r => r.Value.Count),
                 CatalogMatches = FindPrivilegeIds(table, kind).Count
             };
+        }
+
+        // ----- One record: what it is, who owns it, who it is shared with, and what a principal may do with it -----
+
+        /// <summary>The name column and ownership of a table, which decide how its records are read and how depth applies to them.</summary>
+        public TableDetails GetTableDetails(string table)
+        {
+            if (_tableDetails.TryGetValue(table, out var known))
+            {
+                return known;
+            }
+
+            var response = (RetrieveEntityResponse)_service.Execute(
+                new RetrieveEntityRequest { LogicalName = table, EntityFilters = EntityFilters.Entity, RetrieveAsIfPublished = false });
+            var meta = response.EntityMetadata;
+            TableOwnership ownership;
+            switch (meta.OwnershipType)
+            {
+                case OwnershipTypes.UserOwned:
+                case OwnershipTypes.TeamOwned:
+                    ownership = TableOwnership.UserOrTeam;
+                    break;
+                case OwnershipTypes.BusinessOwned:
+                case OwnershipTypes.BusinessParented:
+                    ownership = TableOwnership.BusinessUnit;
+                    break;
+                default:
+                    ownership = TableOwnership.Organization;
+                    break;
+            }
+
+            return _tableDetails[table] = new TableDetails
+            {
+                LogicalName = meta.LogicalName ?? table,
+                DisplayName = meta.DisplayName?.UserLocalizedLabel?.Label ?? meta.DisplayName?.LocalizedLabels?.FirstOrDefault()?.Label ?? meta.LogicalName ?? table,
+                PrimaryNameAttribute = meta.PrimaryNameAttribute,
+                Ownership = ownership
+            };
+        }
+
+        /// <summary>Reads one record: its name, its owner and the business unit it sits in.</summary>
+        public RecordFacts GetRecordFacts(string table, Guid id)
+        {
+            var details = GetTableDetails(table);
+            var columns = new List<string>();
+            if (!string.IsNullOrEmpty(details.PrimaryNameAttribute))
+            {
+                columns.Add(details.PrimaryNameAttribute);
+            }
+
+            if (details.Ownership == TableOwnership.UserOrTeam)
+            {
+                columns.Add("ownerid");
+                columns.Add("owningbusinessunit");
+            }
+            else if (details.Ownership == TableOwnership.BusinessUnit)
+            {
+                columns.Add("owningbusinessunit");
+            }
+
+            var record = _service.Retrieve(table, id, new ColumnSet(columns.ToArray()));
+            var owner = record.GetAttributeValue<EntityReference>("ownerid");
+            var unit = record.GetAttributeValue<EntityReference>("owningbusinessunit");
+            return new RecordFacts
+            {
+                Table = table,
+                TableDisplayName = details.DisplayName,
+                Id = id,
+                Name = string.IsNullOrEmpty(details.PrimaryNameAttribute) ? null : record.GetAttributeValue<string>(details.PrimaryNameAttribute),
+                Ownership = details.Ownership,
+                OwnerId = owner?.Id,
+                OwnerName = owner?.Name,
+                OwnerType = owner?.LogicalName,
+                BusinessUnitId = unit?.Id,
+                BusinessUnitName = unit?.Name
+            };
+        }
+
+        /// <summary>Records of a table whose name contains the text, for picking one.</summary>
+        public IReadOnlyList<RecordMatch> SearchRecords(string table, string text, int top = 25)
+        {
+            var details = GetTableDetails(table);
+            if (string.IsNullOrEmpty(details.PrimaryNameAttribute) || string.IsNullOrWhiteSpace(text))
+            {
+                return new RecordMatch[0];
+            }
+
+            // Characters that mean something in a LIKE pattern are searched for as they are.
+            var escaped = text.Trim().Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
+            var query = new QueryExpression(table)
+            {
+                ColumnSet = new ColumnSet(details.PrimaryNameAttribute),
+                TopCount = top,
+                Criteria = { Conditions = { new ConditionExpression(details.PrimaryNameAttribute, ConditionOperator.Like, "%" + escaped + "%") } },
+                Orders = { new OrderExpression(details.PrimaryNameAttribute, OrderType.Ascending) }
+            };
+            return _service.RetrieveMultiple(query).Entities
+                .Select(e => new RecordMatch { Id = e.Id, Name = e.GetAttributeValue<string>(details.PrimaryNameAttribute) }).ToList();
+        }
+
+        /// <summary>What the platform says a user or team may do with a record (an AccessRights mask).</summary>
+        public int GetPrincipalAccess(AccessPrincipal principal, string table, Guid id)
+        {
+            var response = (RetrievePrincipalAccessResponse)_service.Execute(new RetrievePrincipalAccessRequest
+            {
+                Principal = new EntityReference(principal.EntityName, principal.Id),
+                Target = new EntityReference(table, id)
+            });
+            return (int)response.AccessRights;
+        }
+
+        /// <summary>The users and teams a record is shared with, and the rights each was given.</summary>
+        public IReadOnlyList<ShareRow> GetShares(string table, Guid id)
+        {
+            var response = (RetrieveSharedPrincipalsAndAccessResponse)_service.Execute(
+                new RetrieveSharedPrincipalsAndAccessRequest { Target = new EntityReference(table, id) });
+            return (response.PrincipalAccesses ?? new PrincipalAccess[0]).Select(p => new ShareRow
+            {
+                PrincipalId = p.Principal.Id,
+                Principal = p.Principal.Name,
+                Type = p.Principal.LogicalName == "team" ? "Team" : "User",
+                Mask = (int)p.AccessMask,
+                Rights = RecordAccessAnalyzer.RightsText((int)p.AccessMask)
+            }).ToList();
         }
 
         public IReadOnlyList<UserInfo> GetUsers()

@@ -28,6 +28,7 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
 - **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
   route to it: which role, whether the user holds it directly or through which team, and how far it reaches,
   with the strongest route marked.
+- **Record access** – "can this user (or team) open this record?" Pick a user or team and a record (paste its link or id, or search by name) and see, for Read, Write, Delete, Append, Append To, Assign and Share, whether they have it and why: the role that reaches the record, ownership, a share, or what falls short. A second tab lists everyone the record is shared with. The answer comes from the platform itself; the reasons come from the roles, business units and shares.
 - **A user's access** ("what can this user do?") – pick a user and see every table against the eight privileges, each cell showing how
   far their roles reach (own records, business unit, parent and child units, or the whole organization),
   drawn with the same icons and wording as the Dynamics 365 security role editor. The reverse of Explain access.
@@ -86,6 +87,10 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
 **See why a user has access**
 
 ![Why Chen Wei can delete accounts: one direct route and two through teams](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/explain-access.png)
+
+**Check access to one record**
+
+![Why a user can or cannot reach one record](https://raw.githubusercontent.com/abdelkayoumd/SecurityToolkit/main/docs/screenshots/record-access.png)
 
 **See everything a user can do**
 
