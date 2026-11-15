@@ -169,6 +169,138 @@ namespace SecurityToolkit.Tests
             Assert.Equal(31, ExcelExporter.SafeSheetName(new string('x', 50)).Length);
             Assert.Equal("Sheet1", ExcelExporter.SafeSheetName("???"));
         }
+
+        private static void Export(ExportInfo info, Action<XDocument, XDocument, Package> check)
+        {
+            var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".xlsx");
+            try
+            {
+                ExcelExporter.Write(path, "Roles", new[] { "Role", "Users", "Read", "Code" },
+                    new IReadOnlyList<string>[] { new[] { "Admin", "12", "Organization", "007" }, new[] { "Seller", "3", "None", "42" }, new[] { "It's", "", "User", "1" } }, info);
+
+                using (var package = Package.Open(path, FileMode.Open, FileAccess.Read))
+                {
+                    var sheet = XDocument.Load(package.GetPart(new Uri("/xl/worksheets/sheet1.xml", UriKind.Relative)).GetStream());
+                    var workbook = XDocument.Load(package.GetPart(new Uri("/xl/workbook.xml", UriKind.Relative)).GetStream());
+                    check(sheet, workbook, package);
+                }
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        private static XElement Cell(XDocument sheet, string reference)
+        {
+            return sheet.Descendants().Single(e => e.Name.LocalName == "c" && e.Attribute("r").Value == reference);
+        }
+
+        [Fact]
+        public void Write_FreezesTheHeader_FiltersEveryColumn_AndFitsThePageWidth()
+        {
+            Export(null, (sheet, workbook, package) =>
+            {
+                var pane = sheet.Descendants().Single(e => e.Name.LocalName == "pane");
+                Assert.Equal("frozen", pane.Attribute("state").Value);
+                Assert.Equal("1", pane.Attribute("ySplit").Value);
+                Assert.Equal("A1:D4", sheet.Descendants().Single(e => e.Name.LocalName == "autoFilter").Attribute("ref").Value);
+                Assert.Equal("landscape", sheet.Descendants().Single(e => e.Name.LocalName == "pageSetup").Attribute("orientation").Value);
+                Assert.Equal("1", Cell(sheet, "A1").Attribute("s").Value);
+
+                var names = workbook.Descendants().Where(e => e.Name.LocalName == "definedName").ToDictionary(e => e.Attribute("name").Value, e => e.Value);
+                Assert.Equal("'Roles'!$A$1:$D$4", names["_xlnm._FilterDatabase"]);
+                Assert.Equal("'Roles'!$1:$1", names["_xlnm.Print_Titles"]);
+            });
+        }
+
+        [Fact]
+        public void Write_StoresWholeNumberColumnsAsNumbers_ButKeepsCodesAsText()
+        {
+            Export(null, (sheet, workbook, package) =>
+            {
+                // "Users" holds 12, 3 and a blank: numbers. "Code" holds 007: text, or the zeros would be lost.
+                Assert.Null(Cell(sheet, "B2").Attribute("t"));
+                Assert.Equal("12", Cell(sheet, "B2").Value);
+                Assert.Equal("inlineStr", Cell(sheet, "B4").Attribute("t").Value);
+                Assert.Equal("inlineStr", Cell(sheet, "D2").Attribute("t").Value);
+                Assert.Equal("007", Cell(sheet, "D2").Value);
+            });
+        }
+
+        [Theory]
+        [InlineData(true, "12", "3", "")]
+        [InlineData(true, "-4", "0")]
+        [InlineData(false, "007", "42")]
+        [InlineData(false, "12", "n/a")]
+        [InlineData(false, "", "")]
+        [InlineData(false, "1.5")]
+        public void IsNumberColumn_OnlyForWholeNumbers(bool expected, params string[] values)
+        {
+            Assert.Equal(expected, ExcelExporter.IsNumberColumn(values));
+        }
+
+        [Fact]
+        public void Write_ColoursDepthsOnlyWhenAsked()
+        {
+            Export(null, (sheet, workbook, package) => Assert.Equal("2", Cell(sheet, "C2").Attribute("s").Value));
+            Export(new ExportInfo { ColourDepths = true }, (sheet, workbook, package) =>
+            {
+                Assert.Equal("8", Cell(sheet, "C2").Attribute("s").Value); // Organization
+                Assert.Equal("4", Cell(sheet, "C3").Attribute("s").Value); // None
+                Assert.Equal("5", Cell(sheet, "C4").Attribute("s").Value); // User
+                Assert.Equal("2", Cell(sheet, "A2").Attribute("s").Value); // any other text
+            });
+        }
+
+        [Fact]
+        public void Write_WithInfo_AddsAnAboutSheetSayingWhatWasExported()
+        {
+            var info = new ExportInfo
+            {
+                Title = "Privilege finder: Roles", Description = "3 role(s) grant Read on 1 table(s) at User level or wider",
+                Environment = "Contoso Dev", ExportedOn = new DateTime(2026, 11, 15, 9, 30, 0)
+            };
+            Export(info, (sheet, workbook, package) =>
+            {
+                Assert.Equal(new[] { "Roles", "About" }, workbook.Descendants().Where(e => e.Name.LocalName == "sheet").Select(e => e.Attribute("name").Value));
+
+                var about = XDocument.Load(package.GetPart(new Uri("/xl/worksheets/sheet2.xml", UriKind.Relative)).GetStream());
+                var texts = about.Descendants().Where(e => e.Name.LocalName == "t").Select(e => e.Value).ToList();
+                Assert.Equal("Privilege finder: Roles", texts[0]);
+                Assert.Contains("3 role(s) grant Read on 1 table(s) at User level or wider", texts);
+                Assert.Contains("Contoso Dev", texts);
+                Assert.Contains("2026-11-15 09:30", texts);
+                Assert.Equal("3", texts[texts.IndexOf("Rows") + 1]);
+            });
+
+            Export(null, (sheet, workbook, package) => Assert.False(package.PartExists(new Uri("/xl/worksheets/sheet2.xml", UriKind.Relative))));
+        }
+
+        [Fact]
+        public void EveryStyleACellUses_ExistsInTheStylesheet()
+        {
+            Export(new ExportInfo { Title = "T", ColourDepths = true }, (sheet, workbook, package) =>
+            {
+                var styles = XDocument.Load(package.GetPart(new Uri("/xl/styles.xml", UriKind.Relative)).GetStream());
+                var cellXfs = styles.Descendants().Single(e => e.Name.LocalName == "cellXfs");
+                var fonts = styles.Descendants().Single(e => e.Name.LocalName == "fonts").Elements().Count();
+                var fills = styles.Descendants().Single(e => e.Name.LocalName == "fills").Elements().Count();
+                var borders = styles.Descendants().Single(e => e.Name.LocalName == "borders").Elements().Count();
+
+                Assert.Equal(cellXfs.Elements().Count().ToString(), cellXfs.Attribute("count").Value);
+                Assert.All(cellXfs.Elements(), xf =>
+                {
+                    Assert.InRange(int.Parse(xf.Attribute("fontId").Value), 0, fonts - 1);
+                    Assert.InRange(int.Parse(xf.Attribute("fillId").Value), 0, fills - 1);
+                    Assert.InRange(int.Parse(xf.Attribute("borderId").Value), 0, borders - 1);
+                });
+
+                var about = XDocument.Load(package.GetPart(new Uri("/xl/worksheets/sheet2.xml", UriKind.Relative)).GetStream());
+                var used = sheet.Descendants().Concat(about.Descendants()).Where(e => e.Name.LocalName == "c").Select(e => int.Parse(e.Attribute("s").Value));
+                Assert.All(used, s => Assert.InRange(s, 0, cellXfs.Elements().Count() - 1));
+            });
+        }
     }
 
     public class FeatureRegistryTests

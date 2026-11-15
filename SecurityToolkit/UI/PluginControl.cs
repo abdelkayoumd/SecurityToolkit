@@ -39,6 +39,7 @@ namespace SecurityToolkit.UI
         {
             _security = Service == null ? null : new SecurityService(Service);
             _lblConnection.Text = e.ConnectionDetail != null ? $"Connected to {e.ConnectionDetail.OrganizationFriendlyName}" : "Connected";
+            ExportUi.EnvironmentName = e.ConnectionDetail?.OrganizationFriendlyName;
             foreach (var view in _views.Values)
             {
                 view.OnConnectionChanged();
