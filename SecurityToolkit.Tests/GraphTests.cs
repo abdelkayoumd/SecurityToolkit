@@ -202,6 +202,42 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
+        public void FindRolesWithPrivileges_GivesEachPrivilegeItsDepth_AndListsARoleThatReachesTheMinimumWithAny()
+        {
+            var reader = Guid.NewGuid(); var editor = Guid.NewGuid(); var basic = Guid.NewGuid();
+            var readId = Guid.NewGuid(); var deleteId = Guid.NewGuid();
+            var fake = new FakeOrganizationService();
+            fake.OnRetrieveMultiple = q =>
+            {
+                var query = (QueryExpression)q;
+                switch (query.EntityName)
+                {
+                    case "privilege":
+                        var right = (int)query.Criteria.Conditions.Single(c => c.AttributeName == "accessright").Values[0];
+                        return new EntityCollection(new List<Entity> { new Entity("privilege", right == 1 ? readId : deleteId) });
+                    case "roleprivileges":
+                        var asked = (Guid)query.Criteria.Conditions.Single(c => c.AttributeName == "privilegeid").Values[0];
+                        return new EntityCollection(asked == readId
+                            ? new List<Entity> { Grant(reader, 8), Grant(editor, 2), Grant(basic, 1) }   // Read
+                            : new List<Entity> { Grant(editor, 8) });                                    // Delete
+                    case "role":
+                        return new EntityCollection(new List<Entity> { Role(reader, "Reader", "Root"), Role(editor, "Editor", "Root"), Role(basic, "Basic", "Root") });
+                    default:
+                        return new EntityCollection();
+                }
+            };
+
+            var rows = new SecurityService(fake).FindRolesWithPrivileges("account", new[] { PrivilegeKind.Read, PrivilegeKind.Delete }, PrivilegeDepth.BusinessUnit);
+
+            // Basic only reads its own records, so it is below the minimum for both privileges.
+            Assert.Equal(new[] { "Editor", "Reader" }, rows.Select(r => r.Role));
+            Assert.Equal(new[] { "Business Unit", "Organization" }, rows.Select(r => r.Read));
+            Assert.Equal(new[] { "Organization", "None" }, rows.Select(r => r.Delete));
+            Assert.Equal(new[] { "Organization", "Organization" }, rows.Select(r => r.Depth));
+            Assert.All(rows, r => Assert.Null(r.Write));
+        }
+
+        [Fact]
         public void FindRolesWithPrivilege_ReturnsRolesAtTheRequestedDepthOrWider()
         {
             var user = Guid.NewGuid(); var bu = Guid.NewGuid(); var org = Guid.NewGuid();

@@ -105,28 +105,59 @@ namespace SecurityToolkit.Services
         /// </summary>
         public IReadOnlyList<RolePrivilegeRow> FindRolesWithPrivilege(string table, PrivilegeKind kind, PrivilegeDepth minimum)
         {
-            var grants = GetRoleGrants(table, kind);
-            if (grants.Count == 0)
+            return FindRolesWithPrivileges(table, new[] { kind }, minimum);
+        }
+
+        /// <summary>
+        /// Every role that grants at least one of <paramref name="kinds"/> on <paramref name="table"/> at
+        /// <paramref name="minimum"/> depth or wider. Each row carries the depth of every privilege asked for
+        /// ("None" where the role does not grant it), and the widest of them as its overall depth.
+        /// </summary>
+        public IReadOnlyList<RolePrivilegeRow> FindRolesWithPrivileges(string table, IEnumerable<PrivilegeKind> kinds, PrivilegeDepth minimum)
+        {
+            var asked = kinds.Distinct().ToList();
+            var byRole = new Dictionary<Guid, Dictionary<PrivilegeKind, PrivilegeDepth>>();
+            foreach (var kind in asked)
+            {
+                foreach (var grant in GetRoleGrants(table, kind))
+                {
+                    if (!byRole.TryGetValue(grant.Key, out var depths))
+                    {
+                        byRole[grant.Key] = depths = new Dictionary<PrivilegeKind, PrivilegeDepth>();
+                    }
+
+                    depths[kind] = grant.Value;
+                }
+            }
+
+            if (byRole.Count == 0)
             {
                 return new List<RolePrivilegeRow>();
             }
 
             var roles = GetRoles().ToDictionary(r => r.Id);
             var rows = new List<RolePrivilegeRow>();
-            foreach (var grant in grants)
+            foreach (var entry in byRole)
             {
-                if (!roles.TryGetValue(grant.Key, out var role))
+                if (!roles.TryGetValue(entry.Key, out var role))
                 {
                     continue;
                 }
 
-                rows.Add(new RolePrivilegeRow
+                var widest = entry.Value.Values.Max();
+                var row = new RolePrivilegeRow
                 {
                     Role = role.Name,
                     BusinessUnit = role.BusinessUnitName,
-                    Depth = Privileges.Label(grant.Value),
-                    DepthLevel = (int)grant.Value
-                });
+                    Depth = Privileges.Label(widest),
+                    DepthLevel = (int)widest
+                };
+                foreach (var kind in asked)
+                {
+                    row.Set(kind, Privileges.Label(entry.Value.TryGetValue(kind, out var depth) ? depth : PrivilegeDepth.None));
+                }
+
+                rows.Add(row);
             }
 
             return Privileges.AtLeast(rows, minimum)

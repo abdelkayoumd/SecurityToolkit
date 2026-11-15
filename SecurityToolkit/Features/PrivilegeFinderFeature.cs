@@ -12,8 +12,9 @@ namespace SecurityToolkit.Features
 {
     /// <summary>
     /// R-05: pick one or more tables on the left; the roles that grant a privilege on them appear on the right.
-    /// The privilege and the minimum depth are chosen inside the sentence above the lists:
-    /// "7 role(s) grant [Delete] on 1 table(s) at [Organization] level".
+    /// The privileges (one, several or all) and the minimum depth are chosen inside the sentence above the lists:
+    /// "7 role(s) grant [Delete] on 1 table(s) at [Organization] level". With several privileges the result has
+    /// one depth column per privilege, and a role is listed when it grants at least one of them.
     /// </summary>
     internal sealed class PrivilegeFinderFeature : IFeature
     {
@@ -42,7 +43,7 @@ namespace SecurityToolkit.Features
             private readonly Label _lead;
             private readonly Label _middle;
             private readonly Label _tail;
-            private readonly ComboBox _cmbPrivilege;
+            private readonly CheckedDropDown _privileges;
             private readonly ComboBox _cmbDepth;
             private IReadOnlyList<TableInfo> _tables;
             private IReadOnlyList<TableInfo> _picked = new TableInfo[0];
@@ -53,7 +54,9 @@ namespace SecurityToolkit.Features
                 _lead = SentenceLabel();
                 _middle = SentenceLabel();
                 _tail = SentenceLabel();
-                _cmbPrivilege = Combo(Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>().Select(k => new Choice<PrivilegeKind>(k, Privileges.Label(k))), 110);
+                _privileges = new CheckedDropDown(Kinds.Select(Privileges.Label), "privileges") { Width = 150, Margin = new Padding(0, 6, 6, 0) };
+                _privileges.SetChecked(new[] { Array.IndexOf(Kinds, PrivilegeKind.Read) });
+                _privileges.CheckedChanged += (s, e) => FindRoles();
                 _cmbDepth = Combo(new[] { PrivilegeDepth.User, PrivilegeDepth.BusinessUnit, PrivilegeDepth.ParentChildBusinessUnits, PrivilegeDepth.Organization }
                     .Select(d => new Choice<PrivilegeDepth>(d, Privileges.Label(d))), 190);
 
@@ -68,7 +71,7 @@ namespace SecurityToolkit.Features
                     Visible = false
                 };
                 _sentence.Controls.Add(_lead);
-                _sentence.Controls.Add(_cmbPrivilege);
+                _sentence.Controls.Add(_privileges);
                 _sentence.Controls.Add(_middle);
                 _sentence.Controls.Add(_cmbDepth);
                 _sentence.Controls.Add(_tail);
@@ -76,7 +79,6 @@ namespace SecurityToolkit.Features
                 // Added last, so it is laid out first and sits above the (then hidden) one-line message.
                 Controls.Add(_sentence);
 
-                _cmbPrivilege.SelectedIndex = 1; // Read
                 _cmbDepth.SelectedIndex = 0;     // User or wider = any access
                 ShowSentence(null);
 
@@ -103,7 +105,7 @@ namespace SecurityToolkit.Features
             {
                 yield return Command(Theme.GlyphRefresh, "Refresh", ReloadTables, strong: true);
                 yield return CommandSeparator();
-                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "RolesWithPrivilege.xlsx", "Roles"));
+                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "RolesWithPrivilege.xlsx", "Roles", SentenceText()));
             }
 
             private static Label SentenceLabel()
@@ -138,12 +140,25 @@ namespace SecurityToolkit.Features
             private void ShowSentence(int? roleCount)
             {
                 var depth = SelectedDepth;
-                _lead.Text = roleCount.HasValue ? $"{roleCount.Value} role(s) grant" : "Roles that grant";
+                var any = _privileges.CheckedIndices.Count > 1 ? " any of" : string.Empty;
+                _lead.Text = (roleCount.HasValue ? $"{roleCount.Value} role(s) grant" : "Roles that grant") + any;
                 _middle.Text = _picked.Count == 0 ? "on the selected table(s) at" : $"on {_picked.Count} table(s) at";
                 _tail.Text = depth == PrivilegeDepth.Organization ? "level" : "level or wider";
             }
 
             private PrivilegeDepth SelectedDepth => ((Choice<PrivilegeDepth>)_cmbDepth.SelectedItem).Value;
+
+            /// <summary>The eight privileges, in the order the dropdown lists them.</summary>
+            private static readonly PrivilegeKind[] Kinds = Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>().ToArray();
+
+            private IReadOnlyList<PrivilegeKind> SelectedKinds => _privileges.CheckedIndices.Select(i => Kinds[i]).ToList();
+
+            /// <summary>The sentence as plain text, with every chosen privilege named: what an export says it shows.</summary>
+            private string SentenceText()
+            {
+                var kinds = _privileges.AllChecked ? "all privileges" : string.Join(", ", SelectedKinds.Select(Privileges.Label));
+                return $"{_lead.Text} {kinds} {_middle.Text} {_cmbDepth.Text} {_tail.Text}".Replace(" any of all privileges", " any privilege");
+            }
 
             protected override void Reset()
             {
@@ -202,7 +217,7 @@ namespace SecurityToolkit.Features
             private void FindRoles()
             {
                 // The combos exist from the start; they raise this while the view is still being built.
-                if (_cmbPrivilege == null || _cmbDepth == null || _cmbPrivilege.SelectedItem == null || _cmbDepth.SelectedItem == null)
+                if (_privileges == null || _cmbDepth == null || _cmbDepth.SelectedItem == null)
                 {
                     return;
                 }
@@ -214,7 +229,7 @@ namespace SecurityToolkit.Features
                 }
 
                 var tables = _picked;
-                var kind = ((Choice<PrivilegeKind>)_cmbPrivilege.SelectedItem).Value;
+                var kinds = SelectedKinds;
                 var depth = SelectedDepth;
 
                 Host.RunAsync("Finding roles...", security =>
@@ -222,7 +237,7 @@ namespace SecurityToolkit.Features
                     var rows = new List<RolePrivilegeRow>();
                     foreach (var table in tables)
                     {
-                        foreach (var row in security.FindRolesWithPrivilege(table.LogicalName, kind, depth))
+                        foreach (var row in security.FindRolesWithPrivileges(table.LogicalName, kinds, depth))
                         {
                             row.Table = table.DisplayName;
                             rows.Add(row);
@@ -232,8 +247,23 @@ namespace SecurityToolkit.Features
                     return rows;
                 }, rows =>
                 {
-                    Grid.SetData(rows, "Table", "Role", "BusinessUnit=Business Unit", "Depth");
-                    Grid.SetColumnMinimumWidth("Depth", 200);
+                    if (kinds.Count == 1)
+                    {
+                        Grid.SetData(rows, "Table", "Role", "BusinessUnit=Business Unit", "Depth");
+                        Grid.SetColumnMinimumWidth("Depth", 200);
+                    }
+                    else
+                    {
+                        // One depth column per chosen privilege, like a row of the security role editor.
+                        var columns = new List<string> { "Table", "Role", "BusinessUnit=Business Unit" };
+                        columns.AddRange(kinds.Select(k => k + "=" + Privileges.Label(k)));
+                        Grid.SetData(rows, columns.ToArray());
+                        foreach (var kind in kinds)
+                        {
+                            Grid.SetColumnMinimumWidth(kind.ToString(), kinds.Count > 3 ? 130 : 200);
+                        }
+                    }
+
                     ShowSentence(rows.Count);
                 });
             }

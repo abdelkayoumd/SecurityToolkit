@@ -407,8 +407,8 @@ namespace SecurityToolkit.Tests
                 Open("privilege-finder");
                 LoadedWithoutSelection("privilege-finder");
                 var combos = FindControls<ComboBox>(views["privilege-finder"]).OrderBy(c => c.PointToScreen(Point.Empty).X).ToArray();
-                combos[0].SelectedIndex = 3; // Delete
-                combos[1].SelectedIndex = 1; // Business unit or wider
+                FindControls<CheckedDropDown>(views["privilege-finder"]).Single().SetChecked(new[] { 3 }); // Delete
+                combos[0].SelectedIndex = 1; // Business unit or wider
                 MasterDetailHarness.Select<TableInfo>(Grids("privilege-finder")[0], t => t.LogicalName == "account");
                 Until(() => Grids("privilege-finder")[1].GetVisible<RolePrivilegeRow>().Any());
                 Capture("privilege-finder");

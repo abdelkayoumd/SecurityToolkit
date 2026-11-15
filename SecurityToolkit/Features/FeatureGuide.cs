@@ -92,8 +92,8 @@ namespace SecurityToolkit.Features
             {
                 FeatureId = "privilege-finder", Section = GuideSection.UnderstandAccess,
                 Question = "Which roles let people delete on a table?",
-                Summary = "Pick a privilege, a depth and tables, and see which roles grant it.",
-                Steps = new[] { "Choose the privilege and the minimum depth in the sentence above the lists.", "Select one or more tables on the left.", "The roles that grant it, in each business unit, appear on the right." }
+                Summary = "Pick one, several or all privileges, a depth and tables, and see which roles grant them.",
+                Steps = new[] { "Choose the privilege (tick several, or all) and the minimum depth in the sentence above the lists.", "Select one or more tables on the left.", "The roles that grant it appear on the right. With several privileges, each one gets its own depth column." }
             },
             new GuideEntry
             {

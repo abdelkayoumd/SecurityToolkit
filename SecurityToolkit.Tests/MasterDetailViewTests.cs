@@ -144,12 +144,71 @@ namespace SecurityToolkit.Tests
             MasterDetailHarness.Run(new PrivilegeFinderFeature(), test, connected);
         }
 
-        /// <summary>The privilege (0) and depth (1) dropdowns, which sit inside the sentence above the lists.</summary>
-        private static ComboBox Combo(FeatureView view, int index)
+        /// <summary>The depth dropdown, which sits inside the sentence above the lists.</summary>
+        private static ComboBox Depth(FeatureView view)
         {
             var found = new List<ComboBox>();
             CollectCombos(view, found);
-            return found.OrderBy(c => c.PointToScreen(Point.Empty).X).ElementAt(index);
+            return found.Single();
+        }
+
+        /// <summary>The privilege dropdown of the sentence: a checklist, so several privileges can be ticked.</summary>
+        private static CheckedDropDown Privilege(FeatureView view)
+        {
+            return (CheckedDropDown)Sta.Find(view, c => c is CheckedDropDown);
+        }
+
+        private static string[] Columns(FilterableGrid grid)
+        {
+            return grid.GetTable().Key.ToArray();
+        }
+
+        [Fact]
+        public void TickingSeveralPrivileges_GivesOneDepthColumnPerPrivilege()
+        {
+            Run((view, master, detail, org) =>
+            {
+                MasterDetailHarness.Select<TableInfo>(master, t => t.LogicalName == "account");
+                TeamMembersViewTests.Pump(() => detail.GetVisible<RolePrivilegeRow>().Any());
+                Assert.Equal(new[] { "Table", "Role", "Business Unit", "Depth" }, Columns(detail));
+
+                Privilege(view).SetChecked(new[] { 1, 2, 5 }); // Read, Write, Append To
+
+                Assert.Equal(new[] { "Table", "Role", "Business Unit", "Read", "Write", "Append To" }, Columns(detail));
+                Assert.Equal("3 role(s) grant any of [3 privileges] on 1 table(s) at [User] level or wider", Sentence(view));
+                var admin = detail.GetVisible<RolePrivilegeRow>().Single(r => r.Role == "Admin");
+                Assert.Equal("Organization", admin.Read);
+                Assert.Equal("Organization", admin.AppendTo);
+                Assert.Null(admin.Delete);
+            });
+        }
+
+        [Fact]
+        public void TickingEveryPrivilege_ReadsAllPrivileges_AndShowsTheEightColumns()
+        {
+            Run((view, master, detail, org) =>
+            {
+                MasterDetailHarness.Select<TableInfo>(master, t => t.LogicalName == "account");
+                TeamMembersViewTests.Pump(() => detail.GetVisible<RolePrivilegeRow>().Any());
+
+                Privilege(view).CheckAll();
+
+                Assert.Equal("3 role(s) grant any of [All privileges] on 1 table(s) at [User] level or wider", Sentence(view));
+                Assert.Equal(new[] { "Table", "Role", "Business Unit", "Create", "Read", "Write", "Delete", "Append", "Append To", "Assign", "Share" }, Columns(detail));
+            });
+        }
+
+        [Fact]
+        public void TwoPrivileges_AreNamedInTheDropdown_AndUntickingAllKeepsTheChoice()
+        {
+            Run((view, master, detail, org) =>
+            {
+                Privilege(view).SetChecked(new[] { 0, 3 });
+                Assert.Equal("Create, Delete", Privilege(view).Text);
+
+                Privilege(view).SetChecked(new int[0]);
+                Assert.Equal("Create, Delete", Privilege(view).Text);
+            });
         }
 
         private static void CollectCombos(Control root, List<ComboBox> found)
@@ -171,7 +230,7 @@ namespace SecurityToolkit.Tests
         private static string Sentence(FeatureView view)
         {
             var panel = (FlowLayoutPanel)Sta.Find(view, c => c is FlowLayoutPanel p && p.Dock == DockStyle.Top && p.Controls.OfType<ComboBox>().Any());
-            return string.Join(" ", panel.Controls.Cast<Control>().Select(c => c is ComboBox b ? "[" + b.Text + "]" : c.Text));
+            return string.Join(" ", panel.Controls.Cast<Control>().Select(c => c is ComboBox || c is CheckedDropDown ? "[" + c.Text + "]" : c.Text));
         }
 
         [Fact]
@@ -180,8 +239,8 @@ namespace SecurityToolkit.Tests
             Run((view, master, detail, org) =>
             {
                 Assert.Empty(view.Commands.OfType<ComboBox>());
-                Assert.Equal(2, new Func<int>(() => { var f = new List<ComboBox>(); CollectCombos(view, f); return f.Count; })());
-                Assert.True(Sta.Find(view, c => c is FlowLayoutPanel p && p.Controls.OfType<ComboBox>().Count() == 2).Visible);
+                Assert.Empty(view.Commands.OfType<CheckedDropDown>());
+                Assert.True(Sta.Find(view, c => c is FlowLayoutPanel p && p.Controls.OfType<ComboBox>().Count() == 1 && p.Controls.OfType<CheckedDropDown>().Count() == 1).Visible);
             });
         }
 
@@ -214,8 +273,8 @@ namespace SecurityToolkit.Tests
                 MasterDetailHarness.Select<TableInfo>(master, t => t.LogicalName == "account");
                 TeamMembersViewTests.Pump(() => detail.GetVisible<RolePrivilegeRow>().Any());
 
-                Combo(view, 0).SelectedIndex = 3; // Delete
-                Combo(view, 1).SelectedIndex = 3; // Organization
+                Privilege(view).SetChecked(new[] { 3 }); // Delete
+                Depth(view).SelectedIndex = 3; // Organization
 
                 Assert.Equal("1 role(s) grant [Delete] on 1 table(s) at [Organization] level", Sentence(view));
                 Assert.Equal(new[] { "Admin" }, detail.GetVisible<RolePrivilegeRow>().Select(r => r.Role));
@@ -253,11 +312,11 @@ namespace SecurityToolkit.Tests
                 MasterDetailHarness.Select<TableInfo>(master, t => t.LogicalName == "account");
                 TeamMembersViewTests.Pump(() => detail.GetVisible<RolePrivilegeRow>().Any());
 
-                Combo(view, 1).SelectedIndex = 1; // Business Unit or wider
+                Depth(view).SelectedIndex = 1; // Business Unit or wider
 
                 Assert.Equal(new[] { "Admin", "Auditor" }, detail.GetVisible<RolePrivilegeRow>().Select(r => r.Role).OrderBy(n => n));
 
-                Combo(view, 1).SelectedIndex = 3; // Organization
+                Depth(view).SelectedIndex = 3; // Organization
 
                 Assert.Equal(new[] { "Admin" }, detail.GetVisible<RolePrivilegeRow>().Select(r => r.Role));
             });

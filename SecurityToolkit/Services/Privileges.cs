@@ -32,8 +32,52 @@ namespace SecurityToolkit.Services
         public string Table { get; set; }
         public string Role { get; set; }
         public string BusinessUnit { get; set; }
+
+        /// <summary>The widest depth among the privileges that were asked for.</summary>
         public string Depth { get; set; }
         public int DepthLevel { get; set; }
+
+        // One depth per privilege, in words; filled for the privileges that were asked for.
+        public string Create { get; set; }
+        public string Read { get; set; }
+        public string Write { get; set; }
+        public string Delete { get; set; }
+        public string Append { get; set; }
+        public string AppendTo { get; set; }
+        public string Assign { get; set; }
+        public string Share { get; set; }
+
+        public string Get(PrivilegeKind kind)
+        {
+            switch (kind)
+            {
+                case PrivilegeKind.Create: return Create;
+                case PrivilegeKind.Read: return Read;
+                case PrivilegeKind.Write: return Write;
+                case PrivilegeKind.Delete: return Delete;
+                case PrivilegeKind.Append: return Append;
+                case PrivilegeKind.AppendTo: return AppendTo;
+                case PrivilegeKind.Assign: return Assign;
+                case PrivilegeKind.Share: return Share;
+                default: throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+        }
+
+        public void Set(PrivilegeKind kind, string depth)
+        {
+            switch (kind)
+            {
+                case PrivilegeKind.Create: Create = depth; break;
+                case PrivilegeKind.Read: Read = depth; break;
+                case PrivilegeKind.Write: Write = depth; break;
+                case PrivilegeKind.Delete: Delete = depth; break;
+                case PrivilegeKind.Append: Append = depth; break;
+                case PrivilegeKind.AppendTo: AppendTo = depth; break;
+                case PrivilegeKind.Assign: Assign = depth; break;
+                case PrivilegeKind.Share: Share = depth; break;
+                default: throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+        }
     }
 
     internal static class Privileges
