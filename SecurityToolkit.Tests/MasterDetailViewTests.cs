@@ -230,7 +230,9 @@ namespace SecurityToolkit.Tests
         private static string Sentence(FeatureView view)
         {
             var panel = (FlowLayoutPanel)Sta.Find(view, c => c is FlowLayoutPanel p && p.Dock == DockStyle.Top && p.Controls.OfType<ComboBox>().Any());
-            return string.Join(" ", panel.Controls.Cast<Control>().Select(c => c is ComboBox || c is CheckedDropDown ? "[" + c.Text + "]" : c.Text));
+            // The answer at the end of a sentence is not used here: the count is part of the sentence itself.
+            return string.Join(" ", panel.Controls.Cast<Control>().Where(c => c.Name != "SentenceAnswer")
+                .Select(c => c is ComboBox || c is CheckedDropDown ? "[" + c.Text + "]" : c.Text));
         }
 
         [Fact]

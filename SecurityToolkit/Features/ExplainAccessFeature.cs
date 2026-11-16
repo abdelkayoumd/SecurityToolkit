@@ -28,14 +28,6 @@ namespace SecurityToolkit.Features
             return new ExplainAccessView(host);
         }
 
-        private sealed class Choice<T>
-        {
-            public Choice(T value, string text) { Value = value; Text = text; }
-            public T Value { get; }
-            public string Text { get; }
-            public override string ToString() => Text;
-        }
-
         private sealed class Loaded
         {
             public SecurityGraph Graph { get; set; }
@@ -44,8 +36,10 @@ namespace SecurityToolkit.Features
 
         private sealed class ExplainAccessView : MasterDetailView
         {
+            private readonly SentenceBar _sentence;
+            private readonly Label _who;
             private readonly ComboBox _cmbPrivilege;
-            private readonly ComboBox _cmbTable;
+            private readonly PickBox _cmbTable;
             private IReadOnlyList<TableInfo> _tables;
             private IReadOnlyList<UserInfo> _users = new UserInfo[0];
             private CheckBox _chkDisabled;
@@ -53,48 +47,19 @@ namespace SecurityToolkit.Features
             public ExplainAccessView(IFeatureHost host)
                 : base(host, "Users (Ctrl/Shift-click to select several)", "How they get it")
             {
-                _cmbPrivilege = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 110, Font = Theme.FontRegular, Margin = new Padding(0, 6, 6, 0) };
-                _cmbPrivilege.Items.AddRange(Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>()
-                    .Select(k => (object)new Choice<PrivilegeKind>(k, Privileges.Label(k))).ToArray());
-                _cmbPrivilege.SelectedIndex = 1; // Read
+                // "Why can [Ada] [Read] on [Account]?  Yes, at Organization level"
+                _sentence = new SentenceBar();
+                _sentence.Words("Why can");
+                _who = _sentence.Words(Who(_users));
+                _cmbPrivilege = _sentence.Choice(SentenceChoices.Privilege());
                 _cmbPrivilege.SelectedIndexChanged += (s, e) => Explain();
+                _sentence.Words("on");
+                _cmbTable = _sentence.Choice(new PickBox { Width = 280, Name = "Table" }); // hundreds of tables: typing narrows the list
+                _cmbTable.Picked += (s, e) => Explain();
+                _sentence.Words("?");
 
-                // Hundreds of tables: typing narrows the list.
-                _cmbTable = new ComboBox
-                {
-                    DropDownStyle = ComboBoxStyle.DropDown,
-                    Width = 280,
-                    Font = Theme.FontRegular,
-                    Margin = new Padding(0, 6, 6, 0),
-                    AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                    AutoCompleteSource = AutoCompleteSource.ListItems
-                };
-                _cmbTable.SelectedIndexChanged += (s, e) => Explain();
-                _cmbTable.KeyDown += (s, e) =>
-                {
-                    if (e.KeyCode == Keys.Enter)
-                    {
-                        PickTypedTable();
-                        e.SuppressKeyPress = true;
-                    }
-                };
-
-                var sentence = new FlowLayoutPanel
-                {
-                    Dock = DockStyle.Top,
-                    Height = 34,
-                    WrapContents = false,
-                    Padding = new Padding(10, 0, 0, 0),
-                    BackColor = Theme.PageBackground
-                };
-                sentence.Controls.Add(SentenceLabel("Why can the selected users"));
-                sentence.Controls.Add(_cmbPrivilege);
-                sentence.Controls.Add(SentenceLabel("on"));
-                sentence.Controls.Add(_cmbTable);
-                sentence.Controls.Add(SentenceLabel("?"));
-
-                // Added last, so it is laid out first and sits above the one-line result.
-                Controls.Add(sentence);
+                // Added last, so it is laid out first and sits above the one-line explanation.
+                Controls.Add(_sentence);
                 // Depths are drawn as in the Dynamics 365 security role editor: an icon and the depth in words.
                 Grid.BodyCellRenderer = DepthCell.Paint;
                 InfoLabel.Text = "Connect to an environment to get started.";
@@ -119,7 +84,7 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphRefresh, "Refresh", Reload, strong: true);
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphClearSelection, "Clear selection", Master.ClearSelection);
-                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "ExplainAccess.xlsx", "Access"));
+                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "ExplainAccess.xlsx", "Access", _sentence.PlainText()));
                 _chkDisabled = CommandCheck("Include disabled users", () => { if (IsLoaded) { FillUsers(); } });
                 yield return _chkDisabled;
             }
@@ -128,8 +93,9 @@ namespace SecurityToolkit.Features
             {
                 _tables = null;
                 _users = new UserInfo[0];
-                _cmbTable.Items.Clear();
-                _cmbTable.Text = string.Empty;
+                _cmbTable.Clear();
+                _who.Text = Who(_users);
+                _sentence.Answer(null);
                 base.Reset();
             }
 
@@ -150,12 +116,10 @@ namespace SecurityToolkit.Features
                 }
 
                 var current = SelectedTable?.LogicalName;
-                _cmbTable.Items.Clear();
-                _cmbTable.Items.AddRange(_tables.Select(t => (object)new Choice<TableInfo>(t, $"{t.DisplayName} ({t.LogicalName})")).ToArray());
+                _cmbTable.SetItems(_tables, SentenceChoices.TableText);
                 if (current != null)
                 {
-                    var index = _tables.ToList().FindIndex(t => t.LogicalName == current);
-                    _cmbTable.SelectedIndex = index;
+                    _cmbTable.Show(t => ((TableInfo)t).LogicalName == current);
                 }
 
                 FillUsers();
@@ -182,39 +146,29 @@ namespace SecurityToolkit.Features
                 }
 
                 _users = picked;
+                _who.Text = Who(_users);
                 Explain();
             }
 
-            private TableInfo SelectedTable => (_cmbTable.SelectedItem as Choice<TableInfo>)?.Value;
+            private TableInfo SelectedTable => _cmbTable.Selected<TableInfo>();
 
-            /// <summary>Enter in the table box picks the table whose name was typed, if there is exactly one such table.</summary>
-            private void PickTypedTable()
+            /// <summary>Who the question is about, as the sentence names them: "Ada", "these 3 users".</summary>
+            private static string Who(IReadOnlyList<UserInfo> users)
             {
-                var typed = _cmbTable.Text.Trim();
-                if (typed.Length == 0 || _tables == null)
-                {
-                    return;
-                }
-
-                var matches = _tables.Where(t => string.Equals(t.DisplayName, typed, StringComparison.CurrentCultureIgnoreCase)
-                                                 || string.Equals(t.LogicalName, typed, StringComparison.CurrentCultureIgnoreCase)
-                                                 || $"{t.DisplayName} ({t.LogicalName})".Equals(typed, StringComparison.CurrentCultureIgnoreCase)).ToList();
-                if (matches.Count == 1)
-                {
-                    _cmbTable.SelectedIndex = _tables.ToList().IndexOf(matches[0]);
-                }
+                return users.Count == 0 ? "the selected users" : users.Count == 1 ? users[0].FullName : $"these {users.Count} users";
             }
 
             private void Explain()
             {
                 var table = SelectedTable;
+                _sentence.Answer(null);
                 if (!IsLoaded || _users.Count == 0 || table == null || _cmbPrivilege.SelectedItem == null)
                 {
                     return;
                 }
 
                 var users = _users;
-                var kind = ((Choice<PrivilegeKind>)_cmbPrivilege.SelectedItem).Value;
+                var kind = SentenceChoices.PrivilegeOf(_cmbPrivilege);
                 var graph = Graph;
 
                 // Only the roles these users hold matter, so only their privileges are read.
@@ -241,7 +195,23 @@ namespace SecurityToolkit.Features
                     Grid.SetData(rows, "User", "Role", "RoleBusinessUnit=Role's business unit", "Via", "Depth", "Strongest");
                     Grid.SetColumnMinimumWidth("Depth", 200);
                     InfoLabel.Text = Describe(answers, kind, table.DisplayName, coverage);
+                    ShowAnswer(answers);
                 });
+            }
+
+            /// <summary>The short answer at the end of the question: "Yes, at Organization level", "No", "2 of 3 can".</summary>
+            private void ShowAnswer(IReadOnlyList<AccessAnswer> answers)
+            {
+                var yes = answers.Count(a => a.HasAccess);
+                if (answers.Count == 1)
+                {
+                    _sentence.Answer(yes == 1 ? $"Yes, at {Privileges.Label(answers[0].Best)} level" : "No: no role grants it",
+                        yes == 1 ? SentenceTone.Yes : SentenceTone.No);
+                    return;
+                }
+
+                _sentence.Answer(yes == answers.Count ? $"All {yes} can" : yes == 0 ? $"None of the {answers.Count} can" : $"{yes} of {answers.Count} can",
+                    yes == answers.Count ? SentenceTone.Yes : yes == 0 ? SentenceTone.No : SentenceTone.Neutral);
             }
 
             private static string Describe(IReadOnlyList<AccessAnswer> answers, PrivilegeKind kind, string table, GrantCoverage coverage)
@@ -264,17 +234,6 @@ namespace SecurityToolkit.Features
                 return $"{withAccess} of {answers.Count} selected users have a role that grants {Privileges.Label(kind)} on {table}.";
             }
 
-            private static Label SentenceLabel(string text)
-            {
-                return new Label
-                {
-                    Text = text,
-                    AutoSize = true,
-                    Font = Theme.FontBold,
-                    ForeColor = Theme.TextSecondary,
-                    Margin = new Padding(0, 9, 6, 0)
-                };
-            }
         }
     }
 }

@@ -100,14 +100,14 @@ namespace SecurityToolkit.Features
                 FeatureId = "compare-users", Section = GuideSection.Compare,
                 Question = "How are these two users different?",
                 Summary = "Two users side by side: business unit, roles and teams, with what only one of them has.",
-                Steps = new[] { "Ctrl-click two users on the left.", "The right lists what differs. Untick Differences only to see what they share as well.", "Useful before cloning a user, or to find out why one user can do more." }
+                Steps = new[] { "Pick two users in the sentence above the lists, or Ctrl-click two users on the left.", "The right lists what differs. Untick Differences only to see what they share as well.", "Useful before cloning a user, or to find out why one user can do more." }
             },
             new GuideEntry
             {
                 FeatureId = "compare-roles", Section = GuideSection.Compare,
                 Question = "How are these two roles different?",
                 Summary = "Two roles privilege by privilege: what only one grants and where one reaches further.",
-                Steps = new[] { "Ctrl-click two roles on the left.", "The right lists, table by table, where they differ, with the depth each grants.", "Untick Differences only to see the privileges they share." }
+                Steps = new[] { "Pick two roles in the sentence above the lists, or Ctrl-click two roles on the left.", "The right lists, table by table, where they differ, with the depth each grants.", "Untick Differences only to see the privileges they share." }
             },
             new GuideEntry
             {

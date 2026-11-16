@@ -29,17 +29,9 @@ namespace SecurityToolkit.Features
             return new PrivilegeFinderView(host);
         }
 
-        private sealed class Choice<T>
-        {
-            public Choice(T value, string text) { Value = value; Text = text; }
-            public T Value { get; }
-            public string Text { get; }
-            public override string ToString() => Text;
-        }
-
         private sealed class PrivilegeFinderView : MasterDetailView
         {
-            private readonly FlowLayoutPanel _sentence;
+            private readonly SentenceBar _sentence;
             private readonly Label _lead;
             private readonly Label _middle;
             private readonly Label _tail;
@@ -51,35 +43,18 @@ namespace SecurityToolkit.Features
             public PrivilegeFinderView(IFeatureHost host)
                 : base(host, "Tables (Ctrl/Shift-click to select several)", "Roles that grant the privilege")
             {
-                _lead = SentenceLabel();
-                _middle = SentenceLabel();
-                _tail = SentenceLabel();
-                _privileges = new CheckedDropDown(Kinds.Select(Privileges.Label), "privileges") { Width = 150, Margin = new Padding(0, 6, 6, 0) };
-                _privileges.SetChecked(new[] { Array.IndexOf(Kinds, PrivilegeKind.Read) });
+                // "7 role(s) grant [Delete] on 1 table(s) at [Organization] level"
+                _sentence = new SentenceBar { Visible = false };
+                _lead = _sentence.Words();
+                _privileges = _sentence.Choice(SentenceChoices.PrivilegeList());
                 _privileges.CheckedChanged += (s, e) => FindRoles();
-                _cmbDepth = Combo(new[] { PrivilegeDepth.User, PrivilegeDepth.BusinessUnit, PrivilegeDepth.ParentChildBusinessUnits, PrivilegeDepth.Organization }
-                    .Select(d => new Choice<PrivilegeDepth>(d, Privileges.Label(d))), 190);
-
-                _sentence = new FlowLayoutPanel
-                {
-                    Dock = DockStyle.Top,
-                    Height = 34,
-                    WrapContents = false,
-                    AutoScroll = false,
-                    Padding = new Padding(10, 0, 0, 0),
-                    BackColor = Theme.PageBackground,
-                    Visible = false
-                };
-                _sentence.Controls.Add(_lead);
-                _sentence.Controls.Add(_privileges);
-                _sentence.Controls.Add(_middle);
-                _sentence.Controls.Add(_cmbDepth);
-                _sentence.Controls.Add(_tail);
+                _middle = _sentence.Words();
+                _cmbDepth = _sentence.Choice(SentenceChoices.Depth()); // starts at User or wider = any access
+                _cmbDepth.SelectedIndexChanged += (s, e) => FindRoles();
+                _tail = _sentence.Words();
 
                 // Added last, so it is laid out first and sits above the (then hidden) one-line message.
                 Controls.Add(_sentence);
-
-                _cmbDepth.SelectedIndex = 0;     // User or wider = any access
                 ShowSentence(null);
 
                 // Depths are drawn as in the Dynamics 365 security role editor: an icon and the depth in words.
@@ -108,31 +83,6 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "RolesWithPrivilege.xlsx", "Roles", SentenceText()));
             }
 
-            private static Label SentenceLabel()
-            {
-                return new Label
-                {
-                    AutoSize = true,
-                    Font = Theme.FontBold,
-                    ForeColor = Theme.TextSecondary,
-                    Margin = new Padding(0, 9, 4, 0)
-                };
-            }
-
-            private ComboBox Combo<T>(IEnumerable<Choice<T>> items, int width)
-            {
-                var box = new ComboBox
-                {
-                    DropDownStyle = ComboBoxStyle.DropDownList,
-                    Width = width,
-                    Font = Theme.FontRegular,
-                    Margin = new Padding(0, 6, 6, 0)
-                };
-                box.Items.AddRange(items.Cast<object>().ToArray());
-                box.SelectedIndexChanged += (s, e) => FindRoles();
-                return box;
-            }
-
             /// <summary>
             /// Writes the sentence. With <paramref name="roleCount"/> null (nothing searched yet) it reads as a
             /// question to fill in; otherwise it states the result.
@@ -146,12 +96,9 @@ namespace SecurityToolkit.Features
                 _tail.Text = depth == PrivilegeDepth.Organization ? "level" : "level or wider";
             }
 
-            private PrivilegeDepth SelectedDepth => ((Choice<PrivilegeDepth>)_cmbDepth.SelectedItem).Value;
+            private PrivilegeDepth SelectedDepth => SentenceChoices.DepthOf(_cmbDepth);
 
-            /// <summary>The eight privileges, in the order the dropdown lists them.</summary>
-            private static readonly PrivilegeKind[] Kinds = Enum.GetValues(typeof(PrivilegeKind)).Cast<PrivilegeKind>().ToArray();
-
-            private IReadOnlyList<PrivilegeKind> SelectedKinds => _privileges.CheckedIndices.Select(i => Kinds[i]).ToList();
+            private IReadOnlyList<PrivilegeKind> SelectedKinds => SentenceChoices.PrivilegesOf(_privileges);
 
             /// <summary>The sentence as plain text, with every chosen privilege named: what an export says it shows.</summary>
             private string SentenceText()

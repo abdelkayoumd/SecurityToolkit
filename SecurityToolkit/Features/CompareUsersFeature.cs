@@ -27,6 +27,9 @@ namespace SecurityToolkit.Features
 
         private sealed class CompareUsersView : MasterDetailView
         {
+            private readonly SentenceBar _sentence;
+            private readonly PickBox _pickFirst;
+            private readonly PickBox _pickSecond;
             private UserInfo _first;
             private UserInfo _second;
             private CheckBox _chkDifferences;
@@ -35,7 +38,39 @@ namespace SecurityToolkit.Features
             public CompareUsersView(IFeatureHost host)
                 : base(host, "Users (Ctrl-click to select two)", "Comparison")
             {
+                // "Compare [Ada] with [Bob]  5 differences": the two users can be picked here or Ctrl-clicked on the left.
+                _sentence = new SentenceBar();
+                _sentence.Words("Compare");
+                _pickFirst = _sentence.Choice(new PickBox { Width = 260, Name = "FirstUser" });
+                _sentence.Words("with");
+                _pickSecond = _sentence.Choice(new PickBox { Width = 260, Name = "SecondUser" });
+                _pickFirst.Picked += (s, e) => PickedInSentence();
+                _pickSecond.Picked += (s, e) => PickedInSentence();
+                Controls.Add(_sentence);
                 InfoLabel.Text = "Connect to an environment to get started.";
+            }
+
+            /// <summary>Both users chosen in the sentence: select them on the left too, and compare.</summary>
+            private void PickedInSentence()
+            {
+                var first = _pickFirst.Selected<UserInfo>();
+                var second = _pickSecond.Selected<UserInfo>();
+                if (first == null || second == null)
+                {
+                    return;
+                }
+
+                if (first == second)
+                {
+                    InfoLabel.Text = "Pick two different users to compare.";
+                    _sentence.Answer(null);
+                    return;
+                }
+
+                _first = first;
+                _second = second;
+                Master.SelectWhere(row => row == first || row == second);
+                ShowComparison();
             }
 
             protected override string PromptText => "Select two users on the left (Ctrl-click) to compare them.";
@@ -45,7 +80,7 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphRefresh, "Refresh", () => WithGraph(OnGraphLoaded, refresh: true), strong: true);
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphClearSelection, "Clear selection", Master.ClearSelection);
-                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "CompareUsers.xlsx", "Comparison"));
+                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "CompareUsers.xlsx", "Comparison", _sentence.PlainText()));
 
                 // Two users usually share dozens of roles; the gaps are what matter, so hide the rest by default.
                 _chkDifferences = CommandCheck("Differences only", ShowComparison, isChecked: true);
@@ -58,6 +93,9 @@ namespace SecurityToolkit.Features
             {
                 _first = null;
                 _second = null;
+                _pickFirst.Clear();
+                _pickSecond.Clear();
+                _sentence.Answer(null);
                 base.Reset();
             }
 
@@ -69,8 +107,10 @@ namespace SecurityToolkit.Features
                 }
 
                 var includeDisabled = _chkDisabled != null && _chkDisabled.Checked;
-                Master.SetData(Graph.Users.Where(u => includeDisabled || !u.IsDisabled).ToList(),
-                    "FullName=Full Name", "DomainName=User Name", "BusinessUnitName=Business Unit", "Status");
+                var users = Graph.Users.Where(u => includeDisabled || !u.IsDisabled).ToList();
+                Master.SetData(users, "FullName=Full Name", "DomainName=User Name", "BusinessUnitName=Business Unit", "Status");
+                _pickFirst.SetItems(users, UserText);
+                _pickSecond.SetItems(users, UserText);
                 if (_first == null)
                 {
                     InfoLabel.Text = PromptText;
@@ -95,13 +135,29 @@ namespace SecurityToolkit.Features
                     InfoLabel.Text = picked.Count == 1
                         ? $"{picked[0].FullName} selected. Ctrl-click a second user to compare."
                         : "Select exactly two users to compare.";
+                    if (picked.Count == 1)
+                    {
+                        _pickFirst.Show(u => u == picked[0]);
+                    }
+
+                    return;
+                }
+
+                // Already compared (the two were picked in the sentence): keep their order.
+                if (picked.Contains(_first) && picked.Contains(_second))
+                {
                     return;
                 }
 
                 _first = picked[0];
                 _second = picked[1];
+                _pickFirst.Show(u => u == _first);
+                _pickSecond.Show(u => u == _second);
                 ShowComparison();
             }
+
+            /// <summary>"Ada Lovelace (ada@contoso.com)": the login tells two people with the same name apart.</summary>
+            private static string UserText(UserInfo user) => string.IsNullOrEmpty(user.DomainName) ? user.FullName : $"{user.FullName} ({user.DomainName})";
 
             private void ShowComparison()
             {
@@ -129,6 +185,10 @@ namespace SecurityToolkit.Features
                 var summary = $"{names.Item1} and {names.Item2}: {businessUnit}; {onlyFirst} only {names.Item1}, {onlySecond} only {names.Item2}, {both} in both";
                 var sameRolesAndTeams = !items.Any(r => r.IsDifference);
                 InfoLabel.Text = sameRolesAndTeams ? summary + ". No security role or team differs." : summary;
+
+                var differences = all.Count(r => r.IsDifference);
+                _sentence.Answer(differences == 0 ? "No difference" : differences == 1 ? "1 difference" : $"{differences} differences",
+                    differences == 0 ? SentenceTone.Yes : SentenceTone.Neutral);
             }
         }
     }
