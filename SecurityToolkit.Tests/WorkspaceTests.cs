@@ -274,3 +274,54 @@ namespace SecurityToolkit.Tests
         }
     }
 }
+
+namespace SecurityToolkit.Tests
+{
+    public class AssignWorkspaceTests
+    {
+        private static readonly string[] Tabs = { "assign-user-roles", "assign-team-roles", "assign-team-membership" };
+
+        [Fact]
+        public void TheMenu_HasOneAssignEntry_WithTheThreeChangeScreensAsTabs()
+        {
+            var menu = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
+            var assign = (IWorkspaceFeature)FeatureRegistry.Find("assign");
+
+            Assert.Contains("assign", menu);
+            Assert.All(Tabs, id => Assert.DoesNotContain(id, menu));
+            Assert.Equal(Tabs, assign.Parts.Select(p => p.Id));
+            Assert.Equal(FeatureGroup.Change, assign.Group);
+            Assert.All(assign.Parts, p => Assert.Equal(FeatureGroup.Change, p.Group));
+            Assert.All(Tabs, id => Assert.Equal("assign", FeatureRegistry.MenuIdOf(id)));
+            Assert.Equal(3, AssignFeature.Tabs.Length);
+            Assert.Contains("clone-user", menu); // cloning stays a screen of its own
+        }
+
+        [Fact]
+        public void ATeam_OpensOnRolesForTeams_WithItsOwnCommands()
+        {
+            Sta.Run(() =>
+            {
+                var org = new Org();
+                var host = OrgFake.HostFor(org);
+                var view = (WorkspaceView)FeatureRegistry.Find("assign").CreateView(host);
+                view.FeatureId = "assign";
+                var form = new Form { Size = new Size(1200, 600) };
+                form.Controls.Add(view);
+                form.Show();
+                Application.DoEvents();
+                _ = view.Commands;
+                view.OnActivated();
+
+                view.ShowPart("assign-team-roles");
+                view.ShowSubject(new Subject { Kind = SubjectKind.Team, Id = org.Reviewers.Id, Name = "Reviewers" });
+
+                Assert.Equal("assign-team-roles", view.ScreenId);
+                Assert.Equal(org.Reviewers.Id, view.CurrentSubject.Id);
+                Assert.Contains(view.Commands.OfType<CommandButton>(), c => c.Text == "Add roles");
+                Assert.Empty(host.Messages);
+                form.Dispose();
+            });
+        }
+    }
+}

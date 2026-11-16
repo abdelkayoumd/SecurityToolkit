@@ -183,9 +183,7 @@ namespace SecurityToolkit.Features
                 new UserAccessFeature(),
                 new PrivilegedUsersFeature(),
                 new CleanupReportFeature(),
-                new UserRolesFeature(),
-                new TeamRolesFeature(),
-                new TeamMembershipFeature(),
+                new AssignFeature(),
                 new CloneUserFeature(),
             });
         }

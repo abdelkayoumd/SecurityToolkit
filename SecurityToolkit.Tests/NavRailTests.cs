@@ -100,7 +100,7 @@ namespace SecurityToolkit.Tests
                     "#UNDERSTAND ACCESS", "A user's access", "Privilege finder",
                     "#COMPARE", "Compare",
                     "#REVIEW", "Privileged users", "Cleanup report",
-                    "#CHANGE", "Roles for users", "Roles for teams", "Team membership", "Clone a user"
+                    "#CHANGE", "Assign", "Clone a user"
                 }, rail.RowLabels);
             });
         }

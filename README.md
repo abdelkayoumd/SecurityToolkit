@@ -46,8 +46,8 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role. For disabled
   users you can act on the findings: take them out of their teams or remove their roles, through the same
   review, restore file and undo as every other change.
-- **Roles for users, Roles for teams, Team membership, Clone a user** – add or remove security roles for users and teams,
-  add or remove users from teams, and copy one user's business unit, roles and teams onto others.
+- **Assign** – one screen, three tabs: add or remove security roles for users, add or remove them for teams, and
+  add users to owner teams or take them out. **Clone a user** copies one user's business unit, roles and teams onto others.
 - **Safe changes** – every change is listed for review before anything is sent, with notes on what was
   skipped and why. You can save a restore file first, see each change's result, and undo what succeeded. Try
   the Change screens on a development environment first.

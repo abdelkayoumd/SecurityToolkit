@@ -46,7 +46,7 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void TheScreensThatChangeSecurity_AreListedUnderChange_AndSayEveryChangeIsReviewed()
         {
-            var changing = FeatureRegistry.CreateAll().Where(f => f.Group == FeatureGroup.Change).Select(f => f.Id).ToList();
+            var changing = FeatureRegistry.Everything().Where(f => f.Group == FeatureGroup.Change && !(f is IWorkspaceFeature)).Select(f => f.Id).ToList();
 
             foreach (var id in changing)
             {

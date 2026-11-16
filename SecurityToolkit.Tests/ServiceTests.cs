@@ -342,7 +342,7 @@ namespace SecurityToolkit.Tests
             var all = FeatureRegistry.CreateAll().ToDictionary(f => f.Id, f => f.Group);
 
             Assert.Equal(FeatureGroup.Start, all["home"]);
-            foreach (var id in new[] { "assign-user-roles", "assign-team-roles", "assign-team-membership", "clone-user" })
+            foreach (var id in new[] { "assign", "clone-user" })
             {
                 Assert.Equal(FeatureGroup.Change, all[id]);
             }
