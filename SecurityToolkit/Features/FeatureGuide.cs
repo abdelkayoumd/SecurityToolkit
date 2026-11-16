@@ -125,6 +125,13 @@ namespace SecurityToolkit.Features
             },
             new GuideEntry
             {
+                FeatureId = "compare-environments", Section = GuideSection.Compare,
+                Question = "How does Prod differ from Dev?",
+                Summary = "Two environments side by side: roles only one has, privileges that differ for the roles both have, and team roles that differ.",
+                Steps = new[] { "Click Choose the other environment and pick (or add) the second connection in the XrmToolBox window.", "The checks on the left count the differences; select one to see only its own.", "Roles, teams, tables and privileges are matched by name, so they line up even where their ids differ. Nothing is changed in either environment." }
+            },
+            new GuideEntry
+            {
                 FeatureId = "privileged-users", Section = GuideSection.Review,
                 Question = "Is anyone over-privileged?",
                 Summary = "Finds the roles that can delete across the organization and who holds them.",

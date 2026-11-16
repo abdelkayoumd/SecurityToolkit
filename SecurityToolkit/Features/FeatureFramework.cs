@@ -29,6 +29,20 @@ namespace SecurityToolkit.Features
 
         /// <summary>Opens another screen of the toolkit with <paramref name="subject"/> already selected on it.</summary>
         void Open(string featureId, Subject subject);
+
+        /// <summary>The environment the toolkit is connected to, as people call it ("Contoso Dev"); null when not connected.</summary>
+        string EnvironmentName { get; }
+
+        /// <summary>A second environment to compare with; null until one is chosen.</summary>
+        SecurityService OtherSecurity { get; }
+
+        string OtherEnvironmentName { get; }
+
+        /// <summary>Asks XrmToolBox for a second connection (its own connection picker).</summary>
+        void ChooseOtherEnvironment();
+
+        /// <summary>The second environment was chosen, changed or dropped.</summary>
+        event EventHandler OtherEnvironmentChanged;
     }
 
     /// <summary>The heading a feature sits under in the navigation rail.</summary>

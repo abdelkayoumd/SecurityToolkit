@@ -14,7 +14,7 @@ namespace SecurityToolkit.UI
     /// The shell: a navy title bar, the feature rail on the left and the active feature on the right.
     /// It knows nothing about individual features; they come from <see cref="FeatureRegistry"/>.
     /// </summary>
-    public class PluginControl : PluginControlBase, IFeatureHost
+    public class PluginControl : MultipleConnectionsPluginControlBase, IFeatureHost
     {
         private readonly IReadOnlyList<IFeature> _features = FeatureRegistry.CreateAll();
         private readonly Dictionary<string, FeatureView> _views = new Dictionary<string, FeatureView>(StringComparer.OrdinalIgnoreCase);
@@ -39,6 +39,42 @@ namespace SecurityToolkit.UI
         }
 
         SecurityService IFeatureHost.Security => _security;
+
+        // ----- a second environment, to compare with -----
+
+        private SecurityService _other;
+        private string _otherName;
+        private EventHandler _otherChanged;
+
+        string IFeatureHost.EnvironmentName => ConnectionDetail?.OrganizationFriendlyName;
+
+        SecurityService IFeatureHost.OtherSecurity => _other;
+
+        string IFeatureHost.OtherEnvironmentName => _otherName;
+
+        event EventHandler IFeatureHost.OtherEnvironmentChanged
+        {
+            add => _otherChanged += value;
+            remove => _otherChanged -= value;
+        }
+
+        void IFeatureHost.ChooseOtherEnvironment()
+        {
+            // XrmToolBox's own connection picker; the choice arrives in ConnectionDetailsUpdated.
+            AddAdditionalOrganization();
+        }
+
+        /// <summary>
+        /// XrmToolBox added or removed a second connection. Only one other environment is compared at a time: the
+        /// latest one chosen.
+        /// </summary>
+        protected override void ConnectionDetailsUpdated(System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            var detail = AdditionalConnectionDetails.LastOrDefault();
+            _other = detail == null ? null : new SecurityService(detail.GetCrmServiceClient());
+            _otherName = detail?.OrganizationFriendlyName ?? detail?.ConnectionName;
+            _otherChanged?.Invoke(this, EventArgs.Empty);
+        }
 
         private void PluginControl_ConnectionUpdated(object sender, ConnectionUpdatedEventArgs e)
         {

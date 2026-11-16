@@ -239,8 +239,8 @@ namespace SecurityToolkit.Tests
             Assert.Contains("compare", menu);
             Assert.DoesNotContain("compare-users", menu);
             Assert.DoesNotContain("compare-roles", menu);
-            Assert.Equal(new[] { "compare-users", "compare-roles" }, compare.Parts.Select(p => p.Id));
-            Assert.Equal(new[] { "How do two users differ?", "How do two roles differ?" }, CompareFeature.Tabs.Select(t => t.Question));
+            Assert.Equal(new[] { "compare-users", "compare-roles", "compare-environments" }, compare.Parts.Select(p => p.Id));
+            Assert.Equal(new[] { "How do two users differ?", "How do two roles differ?", "How do two environments differ?" }, CompareFeature.Tabs.Select(t => t.Question));
             Assert.Equal("compare", FeatureRegistry.MenuIdOf("compare-users"));
             Assert.Equal("compare", FeatureRegistry.MenuIdOf("compare-roles"));
         }

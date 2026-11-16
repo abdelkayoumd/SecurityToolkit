@@ -61,7 +61,7 @@ Target: 17 screens become about 10. Result: 11 menu entries (Home, 4 to look up,
 |---|------|------|------------|-----------|
 | 21 | Snapshot: save the security state (users, teams, roles, privileges) to a file | M | | A snapshot of a real org saves and reloads |
 | 22 | Drift: compare the org with a snapshot and list what changed | M | 21 | Added and removed roles, members and privileges are listed |
-| 23 | Compare two environments (Dev and Prod): roles, privileges, team roles | L | 21 | Works with a second XrmToolBox connection, or a snapshot of the other environment |
+| 23 | Compare two environments (Dev and Prod): roles, privileges, team roles | built (second connection; the snapshot side waits for 21) | 21 | Works with a second XrmToolBox connection, or a snapshot of the other environment |
 | 24 | Access review pack: one workbook per business unit or manager for periodic certification | M | 2 | A reviewer can sign off from the workbook alone |
 
 ## Later, as a separate tool

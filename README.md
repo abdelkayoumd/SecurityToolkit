@@ -21,11 +21,14 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   detail.
 - **Application users** – the app registrations acting in Dataverse, listed apart from people, with every role
   they hold directly or through a team.
-- **Compare** – one screen, two tabs, differences only by default:
+- **Compare** – one screen, three tabs:
   - *How do two users differ?* – pick two users and see the differences side by side: business unit, security
     roles (however each user has them) and teams.
   - *How do two roles differ?* – pick two security roles and see, table by table and privilege by privilege,
     what only one of them grants and where one reaches further.
+  - *How do two environments differ?* – Dev against Prod, through a second XrmToolBox connection: the roles only
+    one side has, the privileges that differ for the roles both have, and the team roles that differ. Roles,
+    teams, tables and privileges are matched by name, so they line up even where their ids differ.
 - **Privilege finder** – pick tables, one, several or all privileges (Create, Read, Write, Delete, Append,
   Append To, Assign, Share) and a minimum depth, and see which roles grant them, with one depth column per privilege.
   Switch to the other privileges (Export to Excel, Bulk Delete, Act on Behalf of Another User...) to find the roles

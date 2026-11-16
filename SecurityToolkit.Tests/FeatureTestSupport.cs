@@ -24,6 +24,31 @@ namespace SecurityToolkit.Tests
         public List<KeyValuePair<string, Subject>> Opened = new List<KeyValuePair<string, Subject>>();
         public List<string> Messages = new List<string>();
         public void Open(string featureId, Subject subject) { Opened.Add(new KeyValuePair<string, Subject>(featureId, subject)); }
+        public string EnvironmentName { get; set; } = "Dev";
+        public SecurityService OtherSecurity { get; private set; }
+        public string OtherEnvironmentName { get; private set; }
+        public int OtherRequests;
+
+        /// <summary>What "choosing" the other environment connects to in a test; null leaves it unchosen.</summary>
+        public Func<KeyValuePair<string, SecurityService>> OtherToChoose;
+
+        public void ChooseOtherEnvironment()
+        {
+            OtherRequests++;
+            if (OtherToChoose != null)
+            {
+                SetOther(OtherToChoose());
+            }
+        }
+
+        public void SetOther(KeyValuePair<string, SecurityService> other)
+        {
+            OtherEnvironmentName = other.Key;
+            OtherSecurity = other.Value;
+            OtherEnvironmentChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        public event EventHandler OtherEnvironmentChanged;
     }
 
     internal static class OrgFake

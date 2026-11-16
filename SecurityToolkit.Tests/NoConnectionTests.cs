@@ -33,6 +33,12 @@ namespace SecurityToolkit.Tests
         public IChangeUi CreateChangeUi(IWin32Window owner) { return Ui; }
         public void Navigate(string featureId) { }
         public void Open(string featureId, Subject subject) { }
+        public string EnvironmentName => null;
+        public SecurityService OtherSecurity => null;
+        public string OtherEnvironmentName => null;
+        public int OtherRequests;
+        public void ChooseOtherEnvironment() { OtherRequests++; }
+        public event EventHandler OtherEnvironmentChanged { add { } remove { } }
     }
 
     public class NoConnectionTests

@@ -18,14 +18,16 @@ namespace SecurityToolkit.Features
         public IReadOnlyList<IFeature> Parts { get; } = new IFeature[]
         {
             new CompareUsersFeature(),
-            new CompareRolesFeature()
+            new CompareRolesFeature(),
+            new CompareEnvironmentsFeature()
         };
 
         /// <summary>Each tab says the question it answers, in the order of <see cref="Parts"/>.</summary>
         internal static readonly QuestionTab[] Tabs =
         {
             new QuestionTab(Glyphs.Compare, "How do two users differ?", "Business unit, roles and teams side by side"),
-            new QuestionTab(Glyphs.CompareRoles, "How do two roles differ?", "Table by table, privilege by privilege")
+            new QuestionTab(Glyphs.CompareRoles, "How do two roles differ?", "Table by table, privilege by privilege"),
+            new QuestionTab(Glyphs.Swap, "How do two environments differ?", "Roles, privileges and team roles, Dev against Prod")
         };
 
         public FeatureView CreateView(IFeatureHost host)
