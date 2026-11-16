@@ -225,3 +225,52 @@ namespace SecurityToolkit.Tests
         }
     }
 }
+
+namespace SecurityToolkit.Tests
+{
+    public class CompareWorkspaceTests
+    {
+        [Fact]
+        public void TheMenu_HasOneCompareEntry_WithTwoUsersAndTwoRolesAsTabs()
+        {
+            var menu = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
+            var compare = (IWorkspaceFeature)FeatureRegistry.Find("compare");
+
+            Assert.Contains("compare", menu);
+            Assert.DoesNotContain("compare-users", menu);
+            Assert.DoesNotContain("compare-roles", menu);
+            Assert.Equal(new[] { "compare-users", "compare-roles" }, compare.Parts.Select(p => p.Id));
+            Assert.Equal(new[] { "How do two users differ?", "How do two roles differ?" }, CompareFeature.Tabs.Select(t => t.Question));
+            Assert.Equal("compare", FeatureRegistry.MenuIdOf("compare-users"));
+            Assert.Equal("compare", FeatureRegistry.MenuIdOf("compare-roles"));
+        }
+
+        [Fact]
+        public void ARole_OpensOnTheTwoRolesTab_AndAUserDoesNotFollowThere()
+        {
+            Sta.Run(() =>
+            {
+                var org = new Org();
+                var host = OrgFake.HostFor(org);
+                var view = (WorkspaceView)FeatureRegistry.Find("compare").CreateView(host);
+                view.FeatureId = "compare";
+                var form = new Form { Size = new Size(1200, 600) };
+                form.Controls.Add(view);
+                form.Show();
+                Application.DoEvents();
+                _ = view.Commands;
+                view.OnActivated();
+
+                Assert.Equal("compare-users", view.ScreenId);
+                view.ShowSubject(new Subject { Kind = SubjectKind.User, Id = org.Bob.Id, Name = "Bob" });
+
+                view.ShowPart("compare-roles");
+
+                Assert.Equal("compare-roles", view.ScreenId);
+                Assert.Empty(host.Messages); // a user is not offered to the roles list, and nothing complains
+                Assert.Contains(view.Commands.OfType<CheckBox>(), c => c.Text == "Differences only");
+                form.Dispose();
+            });
+        }
+    }
+}

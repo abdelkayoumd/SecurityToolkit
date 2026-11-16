@@ -351,7 +351,7 @@ namespace SecurityToolkit.Tests
             {
                 ["users-and-teams"] = FeatureGroup.LookUp, ["team-members"] = FeatureGroup.LookUp, ["users-by-role"] = FeatureGroup.LookUp, ["business-unit-tree"] = FeatureGroup.LookUp,
                 ["user-access"] = FeatureGroup.UnderstandAccess, ["privilege-finder"] = FeatureGroup.UnderstandAccess,
-                ["compare-users"] = FeatureGroup.Compare, ["compare-roles"] = FeatureGroup.Compare,
+                ["compare"] = FeatureGroup.Compare,
                 ["privileged-users"] = FeatureGroup.Review, ["cleanup-report"] = FeatureGroup.Review
             };
             foreach (var pair in expected)

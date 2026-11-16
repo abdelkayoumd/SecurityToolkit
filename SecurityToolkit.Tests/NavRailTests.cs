@@ -98,7 +98,7 @@ namespace SecurityToolkit.Tests
                     "Home",
                     "#LOOK UP", "Users and teams", "Teams and members", "Role holders", "Business units",
                     "#UNDERSTAND ACCESS", "A user's access", "Privilege finder",
-                    "#COMPARE", "Two users", "Two roles",
+                    "#COMPARE", "Compare",
                     "#REVIEW", "Privileged users", "Cleanup report",
                     "#CHANGE", "Roles for users", "Roles for teams", "Team membership", "Clone a user"
                 }, rail.RowLabels);

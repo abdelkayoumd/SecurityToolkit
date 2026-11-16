@@ -19,10 +19,11 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   (and how many including its children). Select a unit and choose what to list: its users with their teams and
   roles, its teams, or the security roles in use there. Include child units, and export the list or the users in
   detail.
-- **Two users (compare)** – pick two users and see the differences side by side: business unit, security roles
-  (however each user has them) and teams. Differences only by default.
-- **Two roles (compare)** – pick two security roles and see, table by table and privilege by privilege, what only
-  one of them grants and where one reaches further. Differences only by default.
+- **Compare** – one screen, two tabs, differences only by default:
+  - *How do two users differ?* – pick two users and see the differences side by side: business unit, security
+    roles (however each user has them) and teams.
+  - *How do two roles differ?* – pick two security roles and see, table by table and privilege by privilege,
+    what only one of them grants and where one reaches further.
 - **Privilege finder** – pick tables, one, several or all privileges (Create, Read, Write, Delete, Append,
   Append To, Assign, Share) and a minimum depth, and see which roles grant them, with one depth column per privilege.
 - **A user's access** – one screen, three tabs, and the selected user follows you from tab to tab:

@@ -275,7 +275,7 @@ namespace SecurityToolkit.Tests
         public void ItIsListedUnderItsGroup_AndRegistered()
         {
             Assert.Equal(FeatureGroup.Compare, new CompareRolesFeature().Group);
-            Assert.Contains(FeatureRegistry.CreateAll(), f => f is CompareRolesFeature);
+            Assert.Contains(FeatureRegistry.Everything(), f => f is CompareRolesFeature);
         }
     }
 }

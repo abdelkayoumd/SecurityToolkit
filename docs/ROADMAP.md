@@ -38,7 +38,7 @@ A major version because the menu changes.
 |---|------|------|------------|-----------|
 | 3 | Privilege finder Business Unit column (carried over from 1.4.0) | S | | Result matches the role editor for a role copied to a child business unit |
 | 11 | User workspace: A user's access, Explain access and Record access as tabs of one screen (what, why, this record) | built | 7 | The three old menu entries are gone and nothing was lost |
-| 12 | One Compare screen for two users or two roles | M | | One menu entry |
+| 12 | One Compare screen for two users or two roles | built | | One menu entry |
 | 13 | One Assign screen for roles for users, roles for teams and team membership | M | | One menu entry, same review and undo |
 | 14 | Sentence pattern on Explain access and Compare, using the shared dropdowns | M | 11, 12 | Each screen states its question and result in one sentence |
 | 15 | Home, "How it works", README and screenshots updated for the new menu | S | 11 to 14 | No reference to a removed screen |
