@@ -26,6 +26,9 @@ namespace SecurityToolkit.Features
 
         /// <summary>Opens another screen of the toolkit by its feature id.</summary>
         void Navigate(string featureId);
+
+        /// <summary>Opens another screen of the toolkit with <paramref name="subject"/> already selected on it.</summary>
+        void Open(string featureId, Subject subject);
     }
 
     /// <summary>The heading a feature sits under in the navigation rail.</summary>
@@ -112,6 +115,11 @@ namespace SecurityToolkit.Features
 
         /// <summary>The connection changed (or was established); cached data is stale.</summary>
         public virtual void OnConnectionChanged()
+        {
+        }
+
+        /// <summary>Selects <paramref name="subject"/> on this screen (now, or as soon as its list has loaded). Screens that cannot take one ignore it.</summary>
+        public virtual void ShowSubject(Subject subject)
         {
         }
 

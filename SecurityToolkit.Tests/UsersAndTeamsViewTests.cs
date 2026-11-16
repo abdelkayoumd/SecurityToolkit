@@ -22,6 +22,25 @@ namespace SecurityToolkit.Tests
             return view.Commands.OfType<CommandButton>().First(b => b.Text == text);
         }
 
+        [Fact]
+        public void TreeNodes_KnowTheUserTeamOrRoleTheyStandFor_SoTheyCanBeOpenedElsewhere()
+        {
+            WithSelection(new[] { "Bob" }, (view, tree) =>
+            {
+                var bob = tree.Nodes[0];
+                Assert.Equal("Bob", ((SecurityToolkit.Models.UserInfo)bob.Tag).FullName);
+
+                var all = new List<TreeNode>();
+                void Walk(TreeNodeCollection nodes) { foreach (TreeNode n in nodes) { all.Add(n); Walk(n.Nodes); } }
+                Walk(tree.Nodes);
+                Assert.Contains(all, n => n.Tag is SecurityToolkit.Models.TeamInfo t && t.Name == "Reviewers");
+                Assert.Contains(all, n => n.Tag is SecurityToolkit.Models.RoleInfo r && r.Name == "Seller");
+
+                var items = ((DataView)view).OpenInItems(bob.Tag).OfType<ToolStripMenuItem>().Select(i => (string)i.Tag).ToList();
+                Assert.Contains("user-access-matrix", items);
+            });
+        }
+
         /// <summary>Opens the feature on the sample organization, loads the users and selects the named ones.</summary>
         private static void WithSelection(string[] selected, Action<FeatureView, TreeView> test)
         {

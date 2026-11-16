@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
@@ -30,7 +31,45 @@ namespace SecurityToolkit.Features
             // The last control added is laid out first, so the label ends up above the grid.
             Controls.Add(Grid);
             Controls.Add(InfoLabel);
+            EnableOpenIn(Grid);
         }
+
+        /// <summary>
+        /// Gives a grid's rows the right-click entries that open another screen on the user, team, role or table
+        /// the row is about. The main grid gets them already; a screen calls this for any other grid it adds.
+        /// </summary>
+        protected void EnableOpenIn(FilterableGrid grid)
+        {
+            grid.RowMenu = OpenInItems;
+        }
+
+        /// <summary>The "open in" entries for a row: flat for a row about one thing, one submenu per thing otherwise.</summary>
+        internal IEnumerable<ToolStripItem> OpenInItems(object row)
+        {
+            var subjects = Subjects.From(row, Graph ?? Host.Security?.CachedGraph)
+                .Where(s => SubjectActions.For(s.Kind, FeatureId).Count > 0).ToList();
+            if (subjects.Count == 1)
+            {
+                yield return new ToolStripLabel(Heading(subjects[0])) { Font = Theme.FontBold, ForeColor = Theme.TextSecondary };
+                foreach (var item in ActionItems(subjects[0]))
+                {
+                    yield return item;
+                }
+
+                yield break;
+            }
+
+            foreach (var subject in subjects)
+            {
+                var group = new ToolStripMenuItem(Heading(subject));
+                group.DropDownItems.AddRange(ActionItems(subject).ToArray());
+                yield return group;
+            }
+        }
+
+        private static string Heading(Subject subject) => SubjectActions.Heading(subject);
+
+        private IEnumerable<ToolStripItem> ActionItems(Subject subject) => SubjectActions.MenuItems(subject, FeatureId, Host.Open);
 
         protected FilterableGrid Grid { get; }
         protected Label InfoLabel { get; }

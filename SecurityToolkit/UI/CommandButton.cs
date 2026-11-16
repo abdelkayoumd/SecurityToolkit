@@ -33,6 +33,12 @@ namespace SecurityToolkit.UI
             set { _glyph = value ?? string.Empty; RecalculateWidth(); Invalidate(); }
         }
 
+        /// <summary>Runs the command as a click would (used by the keyboard shortcuts).</summary>
+        public void PerformClick()
+        {
+            OnClick(EventArgs.Empty);
+        }
+
         public bool Strong
         {
             get => _strong;

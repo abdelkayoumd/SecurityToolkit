@@ -37,6 +37,7 @@ namespace SecurityToolkit.Features
                 _tabs.AddTab(UsersTab);
                 _tabs.AddTab(TeamsTab);
                 _teamsGrid = new FilterableGrid { Visible = false, EmptyMessage = "No team holds the selected roles." };
+                EnableOpenIn(_teamsGrid);
 
                 var side = Grid.Parent;
                 var heading = side.Controls.OfType<Label>().First();

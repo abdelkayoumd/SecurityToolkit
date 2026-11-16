@@ -46,6 +46,25 @@ namespace SecurityToolkit.Features
                     ShowNodeToolTips = true,
                     ImageList = _icons
                 };
+                _tree.NodeMouseClick += (s, e) =>
+                {
+                    if (e.Button != MouseButtons.Right || e.Node.Tag == null)
+                    {
+                        return;
+                    }
+
+                    _tree.SelectedNode = e.Node;
+                    var items = OpenInItems(e.Node.Tag).ToArray();
+                    if (items.Length == 0)
+                    {
+                        return;
+                    }
+
+                    var menu = new ContextMenuStrip { Font = Theme.FontRegular, ShowImageMargin = false };
+                    menu.Items.AddRange(items);
+                    menu.Closed += (o, a) => BeginInvoke(new Action(menu.Dispose));
+                    menu.Show(_tree, e.Location);
+                };
 
                 var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
                 layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55));
@@ -100,7 +119,7 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphExpand, "Expand all", () => _tree.ExpandAll());
                 yield return Command(Theme.GlyphCollapse, "Collapse all", CollapseToUsers);
                 yield return CommandSeparator();
-                yield return Command(Theme.GlyphDownload, "Export users", () => ExportUi.SaveGrid(this, Grid, "Users.xlsx", "Users"));
+                yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "Users.xlsx", "Users"));
                 yield return Command(Theme.GlyphDownload, "Export teams and roles", ExportTree);
                 _chkDisabled = CommandCheck("Include disabled users", OnGraphLoaded);
                 yield return _chkDisabled;
@@ -189,6 +208,7 @@ namespace SecurityToolkit.Features
             {
                 // The user stands out in bold, and users and teams say which business unit they are in. Roles do not: a role is a copy in some business unit, which only confuses.
                 var userNode = Node(WithBusinessUnit(user.FullName, user.BusinessUnitName), TreeIcons.User, "User");
+                userNode.Tag = user;
                 userNode.NodeFont = Theme.FontBold;
                 userNode.Text = userNode.Text; // re-set so the tree measures the bold text, or it is clipped
 
@@ -196,17 +216,17 @@ namespace SecurityToolkit.Features
                 var directNode = Node($"Direct roles ({directRoles.Count})", TreeIcons.DirectRolesGroup, "Security roles assigned to the user themselves");
                 foreach (var role in directRoles)
                 {
-                    directNode.Nodes.Add(Node(role.Name, TreeIcons.DirectRole, "Assigned directly to the user"));
+                    directNode.Nodes.Add(Tagged(Node(role.Name, TreeIcons.DirectRole, "Assigned directly to the user"), role));
                 }
 
                 var teams = Graph.TeamsOf(user.Id);
                 var teamsNode = Node($"Teams ({teams.Count})", TreeIcons.TeamsGroup, "Teams the user belongs to; a team's roles apply to all its members");
                 foreach (var team in teams)
                 {
-                    var teamNode = Node(WithBusinessUnit(team.Name, team.BusinessUnitName), TreeIcons.Team, team.TypeName + " team");
+                    var teamNode = Tagged(Node(WithBusinessUnit(team.Name, team.BusinessUnitName), TreeIcons.Team, team.TypeName + " team"), team);
                     foreach (var role in Graph.RolesOfTeam(team.Id))
                     {
-                        teamNode.Nodes.Add(Node(role.Name, TreeIcons.InheritedRole, $"Inherited from team {team.Name}"));
+                        teamNode.Nodes.Add(Tagged(Node(role.Name, TreeIcons.InheritedRole, $"Inherited from team {team.Name}"), role));
                     }
 
                     teamsNode.Nodes.Add(teamNode);
@@ -221,6 +241,13 @@ namespace SecurityToolkit.Features
             internal static string WithBusinessUnit(string name, string businessUnit)
             {
                 return string.IsNullOrWhiteSpace(businessUnit) ? name : name + " - " + businessUnit;
+            }
+
+            /// <summary>Remembers what a node stands for (a user, team or role), so its right-click menu can open other screens on it.</summary>
+            private static TreeNode Tagged(TreeNode node, object item)
+            {
+                node.Tag = item;
+                return node;
             }
 
             private static TreeNode Node(string text, int icon, string toolTip)

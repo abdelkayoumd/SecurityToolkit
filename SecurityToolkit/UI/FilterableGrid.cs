@@ -114,6 +114,7 @@ namespace SecurityToolkit.UI
                 }
             };
             _grid.ColumnHeaderMouseClick += OnHeaderClick;
+            _grid.CellMouseDown += OnCellMouseDown;
 
             // What to say in the empty grid, so a blank area never looks like a failure.
             _empty = new Label
@@ -204,6 +205,127 @@ namespace SecurityToolkit.UI
             }
 
             ApplyFilter();
+            DataBound?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>Raised after <see cref="SetData{T}"/> bound new rows.</summary>
+        public event EventHandler DataBound;
+
+        /// <summary>
+        /// The screen's own entries for the right-click menu of a row ("open this user in..."), placed above the
+        /// copy commands every grid has. Null or no items: only the copy commands.
+        /// </summary>
+        public Func<object, IEnumerable<ToolStripItem>> RowMenu { get; set; }
+
+        /// <summary>
+        /// Selects the rows matching <paramref name="pick"/> among those shown and scrolls the first one into view.
+        /// Returns how many were selected; with none, the selection is left as it was.
+        /// </summary>
+        public int SelectWhere(Func<object, bool> pick)
+        {
+            var rows = _grid.Rows.Cast<DataGridViewRow>().Where(r => pick(r.DataBoundItem)).ToList();
+            if (rows.Count == 0)
+            {
+                return 0;
+            }
+
+            var firstVisible = _grid.Columns.Cast<DataGridViewColumn>().Where(c => c.Visible).OrderBy(c => c.DisplayIndex).FirstOrDefault();
+            if (firstVisible != null)
+            {
+                // Making a cell current selects its row alone and scrolls to it.
+                _grid.CurrentCell = rows[0].Cells[firstVisible.Index];
+            }
+
+            _grid.ClearSelection();
+            foreach (var row in rows)
+            {
+                row.Selected = true;
+            }
+
+            return rows.Count;
+        }
+
+        /// <summary>The menu shown on a right-click on <paramref name="item"/>, in <paramref name="column"/>: the screen's entries, then copy.</summary>
+        internal ContextMenuStrip BuildRowMenu(object item, string column)
+        {
+            var menu = new ContextMenuStrip { Font = Theme.FontRegular, ShowImageMargin = false };
+            var own = RowMenu?.Invoke(item)?.ToList() ?? new List<ToolStripItem>();
+            menu.Items.AddRange(own.ToArray());
+            if (own.Count > 0)
+            {
+                menu.Items.Add(new ToolStripSeparator());
+            }
+
+            var cell = CellText(item, column);
+            var copyCell = new ToolStripMenuItem("Copy \"" + Shorten(cell) + "\"") { Enabled = cell.Length > 0 };
+            copyCell.Click += (s, e) => CopyText(cell);
+            var copyRows = new ToolStripMenuItem(SelectedCount > 1 ? $"Copy {SelectedCount} rows" : "Copy row");
+            copyRows.Click += (s, e) => CopyText(SelectedRowsText());
+            menu.Items.Add(copyCell);
+            menu.Items.Add(copyRows);
+            return menu;
+        }
+
+        /// <summary>The selected rows as tab-separated text with a header line, as Excel pastes it.</summary>
+        internal string SelectedRowsText()
+        {
+            var columns = _grid.Columns.Cast<DataGridViewColumn>().Where(c => c.Visible).OrderBy(c => c.DisplayIndex).ToList();
+            var lines = new List<string> { string.Join("\t", columns.Select(c => c.HeaderText)) };
+            lines.AddRange(_grid.SelectedRows.Cast<DataGridViewRow>().OrderBy(r => r.Index)
+                .Select(r => string.Join("\t", columns.Select(c => Clean(r.Cells[c.Index].Value?.ToString())))));
+            return string.Join(Environment.NewLine, lines);
+        }
+
+        private string CellText(object item, string column)
+        {
+            if (item == null || column == null || !_properties.TryGetValue(column, out var property))
+            {
+                return string.Empty;
+            }
+
+            return property.GetValue(item)?.ToString() ?? string.Empty;
+        }
+
+        private static string Clean(string value) => (value ?? string.Empty).Replace("\t", " ").Replace("\r", " ").Replace("\n", " ");
+
+        private static string Shorten(string text) => text.Length > 40 ? text.Substring(0, 37) + "..." : text;
+
+        private static void CopyText(string text)
+        {
+            if (text.Length == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                Clipboard.SetText(text);
+            }
+            catch (System.Runtime.InteropServices.ExternalException)
+            {
+                // The clipboard is held by another program for a moment; nothing to do but let the user retry.
+            }
+        }
+
+        /// <summary>A right-click selects the row under the mouse (unless it is already part of the selection), then opens the row menu.</summary>
+        private void OnCellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Right || e.RowIndex < 0 || e.ColumnIndex < 0)
+            {
+                return;
+            }
+
+            var row = _grid.Rows[e.RowIndex];
+            if (!row.Selected)
+            {
+                _grid.CurrentCell = row.Cells[e.ColumnIndex];
+                _grid.ClearSelection();
+                row.Selected = true;
+            }
+
+            var menu = BuildRowMenu(row.DataBoundItem, _grid.Columns[e.ColumnIndex].DataPropertyName);
+            menu.Closed += (s, args) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(Cursor.Position);
         }
 
         public IReadOnlyList<T> GetSelected<T>()

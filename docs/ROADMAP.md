@@ -10,25 +10,25 @@ Each release is shippable on its own; the order inside a release is the build or
 - Every new screen uses the sentence pattern ("3 roles grant [Read] on 2 tables at [User] level or wider").
 - Every release is checked on a real organization before it is tagged.
 
-## 1.4.0 Finish what is built
+## 1.4.0 Finish what is built (folded into 1.5.0: no separate 1.4.0 release)
 
 | # | Item | Size | Done when |
 |---|------|------|-----------|
-| 1 | Privilege finder: tick one, several or all privileges | built | Tried in XrmToolBox on a real org |
-| 2 | New Excel export format (header, filter, colours, About sheet) | built | Sample opened in Excel and the colours approved |
-| 3 | Privilege finder: check the Business Unit column (root role copy only?) | S | Result matches the role editor for a role copied to a child business unit |
-| 4 | Verify Privileged users on a real org | S | Counts match a manual check of two users |
-| 5 | Verify Record access on a real record, including a team-owned one | S | Answer matches the platform's "Check access" |
+| 1 | Privilege finder: tick one, several or all privileges | done | Tried in XrmToolBox on a real org |
+| 2 | New Excel export format (header, filter, colours, About sheet) | done | Sample opened in Excel and the colours approved |
+| 3 | Privilege finder: check the Business Unit column (root role copy only?) | S, last item of 1.5.0 | Result matches the role editor for a role copied to a child business unit |
+| 4 | Verify Privileged users on a real org | done | Counts match a manual check of two users |
+| 5 | Verify Record access on a real record, including a team-owned one | done | Answer matches the platform's "Check access" |
 | 6 | New icon reaches NuGet and the Tool Library | S | Released |
 
 ## 1.5.0 Fluency: stop starting from an empty screen
 
 | # | Item | Size | Depends on | Done when |
 |---|------|------|------------|-----------|
-| 7 | Carry the selection: right-click a user, team, role or table in any grid and open another screen with it selected | M | | Works from every grid to every screen that takes that kind of item |
-| 8 | Global search box: type a name, get the item and its actions | M | 7 | A user is reachable in one search plus one click from any screen |
-| 9 | Remember state per environment: last screen, filters, splitters, recent users | M | | Reopening the tool restores the last view |
-| 10 | Consistency: one export command name, F5 refresh, Ctrl+E export, "loaded at 10:42" next to Refresh | S | | Same on all screens |
+| 7 | Carry the selection: right-click a user, team, role or table in any grid and open another screen with it selected | built | | Works from every grid to every screen that takes that kind of item |
+| 8 | Global search box: type a name, get the item and its actions | built | 7 | A user is reachable in one search plus one click from any screen |
+| 9 | Remember state per environment: last screen, filters, splitters, recent users | built (last screen, options, recent items; the panes have no splitters to remember) | | Reopening the tool restores the last view |
+| 10 | Consistency: one export command name, F5 refresh, Ctrl+E export, "loaded at 10:42" next to Refresh | built | | Same on all screens |
 
 ## 2.0.0 Simplify: fewer screens, same answers
 

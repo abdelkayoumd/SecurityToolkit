@@ -16,11 +16,14 @@ namespace SecurityToolkit.Tests
         public SecurityService Security { get; set; }
         public void RunAsync<T>(string message, Func<SecurityService, T> work, Action<T> done) { done(work(Security)); }
         public void EnsureConnection(Action action) { action(); }
-        public void ShowMessage(BannerKind kind, string message) { }
+        public void ShowMessage(BannerKind kind, string message) { Messages.Add(message); }
         public ScriptedUi Ui = new ScriptedUi();
         public IChangeUi CreateChangeUi(System.Windows.Forms.IWin32Window owner) { return Ui; }
         public List<string> Navigated = new List<string>();
         public void Navigate(string featureId) { Navigated.Add(featureId); }
+        public List<KeyValuePair<string, Subject>> Opened = new List<KeyValuePair<string, Subject>>();
+        public List<string> Messages = new List<string>();
+        public void Open(string featureId, Subject subject) { Opened.Add(new KeyValuePair<string, Subject>(featureId, subject)); }
     }
 
     internal static class OrgFake

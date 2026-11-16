@@ -149,6 +149,7 @@ namespace SecurityToolkit.Features
                 _tabs.AddTab(AccessTab);
                 _tabs.AddTab(SharingTab);
                 _sharesGrid = new FilterableGrid { Visible = false, EmptyMessage = "Nobody has been given access to this record by sharing." };
+                EnableOpenIn(_sharesGrid);
 
                 var side = Grid.Parent;
                 _sideHeading = side.Controls.OfType<Label>().First();
@@ -168,6 +169,16 @@ namespace SecurityToolkit.Features
                 // Added last, so it is laid out first and sits above the one-line summary.
                 Controls.Add(sentence);
                 InfoLabel.Text = "Connect to an environment to get started.";
+            }
+
+            /// <summary>The list on the left shows users or teams: switch it to the kind of subject being opened.</summary>
+            protected override void PrepareForSubject(Subject subject)
+            {
+                var index = subject.Kind == SubjectKind.Team ? 1 : 0;
+                if (_cmbPrincipal != null && _cmbPrincipal.SelectedIndex != index)
+                {
+                    _cmbPrincipal.SelectedIndex = index;
+                }
             }
 
             protected override int MasterWidthPercent => 30;

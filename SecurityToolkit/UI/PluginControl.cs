@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using SecurityToolkit.Features;
 using SecurityToolkit.Services;
@@ -23,8 +24,12 @@ namespace SecurityToolkit.UI
         private FlowLayoutPanel _commandBar;
         private Banner _banner;
         private Label _lblConnection;
+        private GlobalSearchBox _search;
+        private Label _lblLoaded;
         private FeatureView _current;
         private SecurityService _security;
+        private readonly ToolkitState _state = new ToolkitState(LoadSettings());
+        private string _environment;
 
         public PluginControl()
         {
@@ -40,9 +45,18 @@ namespace SecurityToolkit.UI
             _security = Service == null ? null : new SecurityService(Service);
             _lblConnection.Text = e.ConnectionDetail != null ? $"Connected to {e.ConnectionDetail.OrganizationFriendlyName}" : "Connected";
             ExportUi.EnvironmentName = e.ConnectionDetail?.OrganizationFriendlyName;
+            _search.Reset();
             foreach (var view in _views.Values)
             {
                 view.OnConnectionChanged();
+            }
+
+            // Back to the screen used last time in this environment, unless another screen was opened already.
+            _environment = e.ConnectionDetail?.WebApplicationUrl ?? e.ConnectionDetail?.OrganizationFriendlyName;
+            var last = _state.LastFeature(_environment);
+            if (last != null && _current?.FeatureId == "home" && _features.Any(f => string.Equals(f.Id, last, StringComparison.OrdinalIgnoreCase)))
+            {
+                _rail.Select(last);
             }
         }
 
@@ -87,6 +101,15 @@ namespace SecurityToolkit.UI
                 Margin = new Padding(0),
                 Padding = new Padding(6, 0, 6, 0)
             };
+            _lblLoaded = new Label
+            {
+                AutoSize = true,
+                Font = Theme.FontSmall,
+                ForeColor = Theme.TextSecondary,
+                Margin = new Padding(16, 14, 6, 0),
+                Visible = false,
+                Name = "LoadedAt"
+            };
             _commandBar.Paint += (s, e) =>
             {
                 using (var pen = new Pen(Theme.Border))
@@ -103,12 +126,13 @@ namespace SecurityToolkit.UI
             {
                 Dock = DockStyle.Top,
                 BackColor = Theme.Navy,
-                ColumnCount = 3,
+                ColumnCount = 4,
                 RowCount = 1,
                 Height = 40,
                 Margin = new Padding(0),
                 Padding = new Padding(12, 0, 12, 0)
             };
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             bar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -129,8 +153,30 @@ namespace SecurityToolkit.UI
                 Font = Theme.FontAppTitle,
                 ForeColor = Color.White,
                 AutoSize = true,
-                Anchor = AnchorStyles.Left
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, 24, 0)
             }, 1, 0);
+
+            _search = new GlobalSearchBox
+            {
+                Anchor = AnchorStyles.Left,
+                OverlayHost = this,
+                Source = () => Tuple.Create(_security?.CachedGraph, _security?.CachedTables),
+                RequestData = done =>
+                {
+                    if (_security == null)
+                    {
+                        _banner.ShowMessage(BannerKind.Warning, "Connect to an environment to search it.");
+                        return;
+                    }
+
+                    ((IFeatureHost)this).RunAsync("Loading security data...", security => Tuple.Create(security.GetGraph(), security.GetTables()), loaded => done());
+                },
+                Open = (featureId, subject) => ((IFeatureHost)this).Open(featureId, subject),
+                Recent = () => _state.Recent(_environment)
+            };
+            bar.Controls.Add(_search, 2, 0);
+
             _lblConnection = new Label
             {
                 Text = "Not connected",
@@ -139,8 +185,100 @@ namespace SecurityToolkit.UI
                 AutoSize = true,
                 Anchor = AnchorStyles.Right
             };
-            bar.Controls.Add(_lblConnection, 2, 0);
+            bar.Controls.Add(_lblConnection, 3, 0);
             return bar;
+        }
+
+        /// <summary>
+        /// Keyboard shortcuts, the same on every screen: Ctrl+K puts the cursor in the search box, F5 refreshes,
+        /// Ctrl+E exports to Excel (each only where the screen has that command).
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            switch (keyData)
+            {
+                case Keys.Control | Keys.K:
+                    _search.FocusBox();
+                    return true;
+                case Keys.F5:
+                    return ClickCommand("Refresh");
+                case Keys.Control | Keys.E:
+                    return ClickCommand("Export to Excel");
+                default:
+                    return base.ProcessCmdKey(ref msg, keyData);
+            }
+        }
+
+        /// <summary>Runs the current screen's command with this text; false when the screen has none (or it is disabled).</summary>
+        private bool ClickCommand(string text)
+        {
+            var command = _current?.Commands.OfType<CommandButton>().FirstOrDefault(c => c.Text == text && c.Enabled && c.Visible);
+            if (command == null)
+            {
+                return false;
+            }
+
+            command.PerformClick();
+            return true;
+        }
+
+        /// <summary>"Data read at 10:42" at the end of the command bar, so it is clear how fresh the lists are.</summary>
+        private void ShowLoadedTime()
+        {
+            var at = _security?.LoadedAt;
+            _lblLoaded.Text = at.HasValue ? $"Data read at {at.Value:HH:mm}  ·  F5 to refresh" : string.Empty;
+            _lblLoaded.Visible = at.HasValue;
+        }
+
+        /// <summary>Ticks the command-bar options the way they were left last time, and remembers every later change.</summary>
+        private void RestoreOptions(string featureId, FeatureView view)
+        {
+            foreach (var box in view.Commands.OfType<CheckBox>())
+            {
+                var saved = _state.Option(featureId, box.Text);
+                if (saved.HasValue && box.Checked != saved.Value)
+                {
+                    box.Checked = saved.Value;
+                }
+
+                var option = box;
+                box.CheckedChanged += (s, e) =>
+                {
+                    _state.SetOption(featureId, option.Text, option.Checked);
+                    SaveSettings();
+                };
+            }
+        }
+
+        private static ToolkitSettings LoadSettings()
+        {
+            try
+            {
+                return SettingsManager.Instance.TryLoad(typeof(PluginControl), out ToolkitSettings settings, "Default") ? settings : new ToolkitSettings();
+            }
+            catch (Exception)
+            {
+                // Unreadable settings (an older format, a damaged file): start from the defaults.
+                return new ToolkitSettings();
+            }
+        }
+
+        private void SaveSettings()
+        {
+            try
+            {
+                SettingsManager.Instance.Save(typeof(PluginControl), _state.Settings, "Default");
+            }
+            catch (Exception)
+            {
+                // Remembering is a convenience: a failure to save must never interrupt the work.
+            }
+        }
+
+        public override void ClosingPlugin(PluginCloseInfo info)
+        {
+            SaveSettings();
+            base.ClosingPlugin(info);
         }
 
         private void ShowFeature(string id)
@@ -153,6 +291,7 @@ namespace SecurityToolkit.UI
                 view.FeatureId = id;
                 _views[id] = view;
                 _content.Controls.Add(view);
+                RestoreOptions(id, view);
             }
 
             _commandBar.SuspendLayout();
@@ -162,12 +301,17 @@ namespace SecurityToolkit.UI
                 _commandBar.Controls.Add(command);
             }
 
+            _commandBar.Controls.Add(_lblLoaded);
+            ShowLoadedTime();
+
             _commandBar.ResumeLayout();
 
             _current?.SendToBack();
             _current = view;
             view.BringToFront();
             view.OnActivated();
+            _state.SetLastFeature(_environment, id);
+            SaveSettings();
         }
 
         private IFeature FindFeature(string id)
@@ -198,6 +342,16 @@ namespace SecurityToolkit.UI
             _rail.Select(featureId);
         }
 
+        void IFeatureHost.Open(string featureId, Subject subject)
+        {
+            _state.AddRecent(_environment, subject);
+            _rail.Select(featureId);
+            if (_views.TryGetValue(featureId, out var view))
+            {
+                view.ShowSubject(subject);
+            }
+        }
+
         void IFeatureHost.ShowMessage(BannerKind kind, string message)
         {
             _banner.ShowMessage(kind, message);
@@ -220,6 +374,7 @@ namespace SecurityToolkit.UI
 
                     _banner.HideBanner();
                     done((T)args.Result);
+                    ShowLoadedTime();
                 }
             });
         }

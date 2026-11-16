@@ -23,8 +23,8 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   (however each user has them) and teams. Differences only by default.
 - **Two roles (compare)** – pick two security roles and see, table by table and privilege by privilege, what only
   one of them grants and where one reaches further. Differences only by default.
-- **Privilege finder** – pick tables, a privilege (Create, Read, Write, Delete, Append, Append To, Assign,
-  Share) and a minimum depth, and see which roles grant it.
+- **Privilege finder** – pick tables, one, several or all privileges (Create, Read, Write, Delete, Append,
+  Append To, Assign, Share) and a minimum depth, and see which roles grant them, with one depth column per privilege.
 - **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
   route to it: which role, whether the user holds it directly or through which team, and how far it reaches,
   with the strongest route marked.
@@ -52,8 +52,19 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
 - **Easy to pick up** – the Home page lists the questions you ask ("Why can this user delete accounts?", "Is
   anyone over-privileged?") and opens the screen that answers each one. Every screen says in one line what it
   does, has a "How it works" link with the steps, and tells you what to select while its results area is empty.
+- **Go from one screen to the next** – right-click a user, team, role or table in any list (or in the Users and
+  teams tree) and open another screen on it, already selected: "What can this user do?", "Why does this user
+  have access?", "See who holds this role", "Which roles grant access to this table?" and more. Right-click also
+  copies a cell or the selected rows.
+- **Search from anywhere** – type part of a name in the search box of the title bar (Ctrl+K) to find any user,
+  team, role or table, then pick the screen to open it in. With nothing typed, it lists what you opened lately.
+- **Remembers where you were** – the toolkit reopens on the screen you used last in each environment, and keeps
+  the options you ticked (Include disabled users, Differences only...). The command bar shows when the data was
+  read; F5 refreshes it and Ctrl+E exports to Excel.
 - **Find and filter anything** – every list is searchable, sortable by column title, and filterable by value
-  from the funnel in each column header. What you see can be exported to Excel.
+  from the funnel in each column header. What you see can be exported to Excel: a
+  formatted workbook with a frozen, filtered header, coloured depths, and an About sheet saying what was exported,
+  from which environment and when.
 - **Stays in your environment** – it runs on your XrmToolBox connection, reads security records (users, roles,
   teams, business units, and for the Privilege finder the tables and role privileges), and sends nothing
   anywhere else.

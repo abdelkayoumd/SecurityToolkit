@@ -43,6 +43,7 @@ namespace SecurityToolkit.Services
 
         public void Invalidate()
         {
+            LoadedAt = null;
             _users = null;
             _roles = null;
             _teams = null;
@@ -58,8 +59,22 @@ namespace SecurityToolkit.Services
         }
 
         /// <summary>Everything the read-only features need, loaded once (paged) and cached until <see cref="Invalidate"/>.</summary>
+        /// <summary>The security graph if it was already read, without reading it.</summary>
+        public SecurityGraph CachedGraph => _graph;
+
+        /// <summary>The tables if they were already read, without reading them.</summary>
+        public IReadOnlyList<TableInfo> CachedTables => _tables;
+
+        /// <summary>When the security data now in memory was read, or null before it is.</summary>
+        public DateTime? LoadedAt { get; private set; }
+
         public SecurityGraph GetGraph()
         {
+            if (_graph == null)
+            {
+                LoadedAt = DateTime.Now;
+            }
+
             return _graph ?? (_graph = new SecurityGraph(
                 GetUsers(), GetRoles(), GetTeams(), GetBusinessUnits(),
                 Fetch(new QueryExpression("teammembership") { ColumnSet = new ColumnSet("systemuserid", "teamid") },

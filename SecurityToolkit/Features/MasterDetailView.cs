@@ -1,6 +1,8 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
+using SecurityToolkit.Services;
 using SecurityToolkit.UI;
 using Label = System.Windows.Forms.Label;
 
@@ -48,6 +50,80 @@ namespace SecurityToolkit.Features
             };
 
             Grid.EmptyMessageProvider = () => Host.Security == null ? "Connect to an environment to get started." : EmptyText;
+            EnableOpenIn(Master);
+            Master.DataBound += (s, e) => ApplyPendingSubject();
+        }
+
+        private Subject _pending;
+        private bool _applying;
+
+        /// <summary>
+        /// Selects <paramref name="subject"/> in the list on the left: at once when the list is filled, otherwise as
+        /// soon as it is. Filters that hide it are cleared, and disabled users are included when that is what hid it.
+        /// </summary>
+        public override void ShowSubject(Subject subject)
+        {
+            if (subject == null || !Accepts(subject.Kind))
+            {
+                return;
+            }
+
+            _pending = subject;
+            PrepareForSubject(subject);
+            ApplyPendingSubject();
+        }
+
+        /// <summary>True when the list on the left can hold this kind of subject.</summary>
+        protected virtual bool Accepts(SubjectKind kind)
+        {
+            return SubjectActions.All.Any(a => a.Kind == kind && string.Equals(a.FeatureId, FeatureId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>A screen whose list can show different things (users or teams) switches it to the subject's kind here.</summary>
+        protected virtual void PrepareForSubject(Subject subject)
+        {
+        }
+
+        private void ApplyPendingSubject()
+        {
+            var subject = _pending;
+            if (subject == null || _applying || !IsLoaded)
+            {
+                return;
+            }
+
+            _applying = true;
+            try
+            {
+                Master.ClearFilters();
+                if (Master.SelectWhere(row => Subjects.Matches(subject, row)) == 0 && subject.Kind == SubjectKind.User && RevealDisabledUsers())
+                {
+                    Master.SelectWhere(row => Subjects.Matches(subject, row));
+                }
+
+                if (!Master.GetSelected<object>().Any(row => Subjects.Matches(subject, row)))
+                {
+                    Host.ShowMessage(BannerKind.Warning, $"{subject.Name} is not in the list of this screen.");
+                }
+            }
+            finally
+            {
+                _pending = null;
+                _applying = false;
+            }
+        }
+
+        /// <summary>Ticks "Include disabled users" when the screen has that option and it is not ticked yet; true when it did.</summary>
+        private bool RevealDisabledUsers()
+        {
+            var box = Commands.OfType<CheckBox>().FirstOrDefault(c => c.Text == "Include disabled users");
+            if (box == null || box.Checked)
+            {
+                return false;
+            }
+
+            box.Checked = true; // refills the list
+            return true;
         }
 
         /// <summary>How much of the width the list on the left takes, in percent. A screen whose results need room can narrow it.</summary>
