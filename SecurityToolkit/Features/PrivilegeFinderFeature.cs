@@ -39,6 +39,12 @@ namespace SecurityToolkit.Features
             private readonly ComboBox _cmbDepth;
             private IReadOnlyList<TableInfo> _tables;
             private IReadOnlyList<TableInfo> _picked = new TableInfo[0];
+            private ComboBox _cmbMode;
+            private IReadOnlyList<OtherPrivilege> _others;
+            private IReadOnlyList<OtherPrivilege> _pickedOthers = new OtherPrivilege[0];
+
+            /// <summary>True when the list on the left holds the privileges that are not about a table.</summary>
+            private bool OtherMode => _cmbMode != null && _cmbMode.SelectedIndex == 1;
 
             public PrivilegeFinderView(IFeatureHost host)
                 : base(host, "Tables (Ctrl/Shift-click to select several)", "Roles that grant the privilege")
@@ -62,7 +68,9 @@ namespace SecurityToolkit.Features
                 InfoLabel.Text = "Connect to an environment to get started.";
             }
 
-            protected override string PromptText => "Select one or more tables on the left to see which roles grant the privilege.";
+            protected override string PromptText => OtherMode
+                ? "Select one or more privileges on the left to see which roles grant them."
+                : "Select one or more tables on the left to see which roles grant the privilege.";
 
             // This feature lists tables, not the security graph, so it has its own notion of "loaded".
             protected override bool IsLoaded => _tables != null;
@@ -72,7 +80,7 @@ namespace SecurityToolkit.Features
                 Host.RunAsync("Loading tables...", security => security.GetTables(), tables =>
                 {
                     _tables = tables;
-                    FillTables();
+                    ShowList();
                 });
             }
 
@@ -81,6 +89,48 @@ namespace SecurityToolkit.Features
                 yield return Command(Theme.GlyphRefresh, "Refresh", ReloadTables, strong: true);
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, Grid, "RolesWithPrivilege.xlsx", "Roles", SentenceText()));
+                yield return new Label { Text = "Find roles by", AutoSize = true, ForeColor = Theme.TextSecondary, Margin = new Padding(14, 12, 4, 0) };
+                _cmbMode = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150, Margin = new Padding(0, 8, 8, 0), Font = Theme.FontRegular, Name = "FinderMode" };
+                _cmbMode.Items.AddRange(new object[] { "table privileges", "other privileges" });
+                _cmbMode.SelectedIndex = 0;
+                _cmbMode.SelectedIndexChanged += (s, e) => SwitchMode();
+                yield return _cmbMode;
+            }
+
+            /// <summary>
+            /// Between the tables and the privileges that are not about a table (Export to Excel, Bulk Delete...). The
+            /// other privileges are read the first time they are asked for.
+            /// </summary>
+            private void SwitchMode()
+            {
+                Grid.SetData(new object[0]);
+                _privileges.Visible = !OtherMode;
+                Master.Parent.Controls.OfType<Label>().First().Text = OtherMode ? "Other privileges (Ctrl/Shift-click to select several)" : "Tables (Ctrl/Shift-click to select several)";
+                ShowSentence(null);
+                if (IsLoaded)
+                {
+                    ShowList();
+                }
+            }
+
+            private void FillOthers()
+            {
+                Master.SetData(_others, "Label=Privilege", "Name=Name in Dataverse");
+                InfoLabel.Visible = false;
+                _sentence.Visible = true;
+                if (_pickedOthers.Count > 0)
+                {
+                    FindRoles();
+                }
+            }
+
+            /// <summary>A table is opened from another screen: show the tables.</summary>
+            protected override void PrepareForSubject(Subject subject)
+            {
+                if (OtherMode)
+                {
+                    _cmbMode.SelectedIndex = 0;
+                }
             }
 
             /// <summary>
@@ -90,10 +140,18 @@ namespace SecurityToolkit.Features
             private void ShowSentence(int? roleCount)
             {
                 var depth = SelectedDepth;
+                _tail.Text = depth == PrivilegeDepth.Organization ? "level" : "level or wider";
+                if (OtherMode)
+                {
+                    // "4 role(s) grant Export to Excel at [User] level or wider"
+                    _lead.Text = roleCount.HasValue ? $"{roleCount.Value} role(s) grant" : "Roles that grant";
+                    _middle.Text = (_pickedOthers.Count == 0 ? "the selected privilege(s)" : _pickedOthers.Count == 1 ? _pickedOthers[0].Label : $"any of {_pickedOthers.Count} privileges") + " at";
+                    return;
+                }
+
                 var any = _privileges.CheckedIndices.Count > 1 ? " any of" : string.Empty;
                 _lead.Text = (roleCount.HasValue ? $"{roleCount.Value} role(s) grant" : "Roles that grant") + any;
                 _middle.Text = _picked.Count == 0 ? "on the selected table(s) at" : $"on {_picked.Count} table(s) at";
-                _tail.Text = depth == PrivilegeDepth.Organization ? "level" : "level or wider";
             }
 
             private PrivilegeDepth SelectedDepth => SentenceChoices.DepthOf(_cmbDepth);
@@ -103,6 +161,12 @@ namespace SecurityToolkit.Features
             /// <summary>The sentence as plain text, with every chosen privilege named: what an export says it shows.</summary>
             private string SentenceText()
             {
+                if (OtherMode)
+                {
+                    var names = _pickedOthers.Count > 1 ? ": " + string.Join(", ", _pickedOthers.Select(p => p.Label)) : string.Empty;
+                    return $"{_lead.Text} {_middle.Text} {_cmbDepth.Text} {_tail.Text}{names}";
+                }
+
                 var kinds = _privileges.AllChecked ? "all privileges" : string.Join(", ", SelectedKinds.Select(Privileges.Label));
                 return $"{_lead.Text} {kinds} {_middle.Text} {_cmbDepth.Text} {_tail.Text}".Replace(" any of all privileges", " any privilege");
             }
@@ -111,6 +175,8 @@ namespace SecurityToolkit.Features
             {
                 _tables = null;
                 _picked = new TableInfo[0];
+                _others = null;
+                _pickedOthers = new OtherPrivilege[0];
                 base.Reset();
                 _sentence.Visible = false;
                 InfoLabel.Visible = true;
@@ -128,6 +194,48 @@ namespace SecurityToolkit.Features
                 {
                     Host.Security.Invalidate();
                     LoadData();
+                });
+            }
+
+            private void FindRolesForOthers()
+            {
+                if (_pickedOthers.Count == 0 || _others == null)
+                {
+                    return;
+                }
+
+                var privileges = _pickedOthers;
+                var depth = SelectedDepth;
+                Host.RunAsync("Finding roles...", security => security.FindRolesWithOtherPrivileges(privileges, depth), rows =>
+                {
+                    Grid.SetData(rows, "Table=Privilege", "Role", "BusinessUnit=Business Unit", "Depth");
+                    Grid.SetColumnMinimumWidth("Depth", 200);
+                    ShowSentence(rows.Select(r => r.Role + "|" + r.BusinessUnit).Distinct().Count());
+                });
+            }
+
+            /// <summary>Fills the list on the left with what the chosen mode lists.</summary>
+            private void ShowList()
+            {
+                if (!OtherMode)
+                {
+                    FillTables();
+                    return;
+                }
+
+                if (_others != null)
+                {
+                    FillOthers();
+                    return;
+                }
+
+                Host.RunAsync("Loading the other privileges...", security => security.GetOtherPrivileges(), others =>
+                {
+                    _others = others;
+                    if (OtherMode)
+                    {
+                        FillOthers();
+                    }
                 });
             }
 
@@ -150,6 +258,18 @@ namespace SecurityToolkit.Features
 
             protected override void OnMasterSelectionChanged()
             {
+                if (OtherMode)
+                {
+                    var others = Master.GetSelected<OtherPrivilege>();
+                    if (others.Count > 0)
+                    {
+                        _pickedOthers = others;
+                        FindRoles();
+                    }
+
+                    return;
+                }
+
                 var picked = Master.GetSelected<TableInfo>();
                 if (picked.Count == 0)
                 {
@@ -170,6 +290,12 @@ namespace SecurityToolkit.Features
                 }
 
                 ShowSentence(null);
+                if (OtherMode)
+                {
+                    FindRolesForOthers();
+                    return;
+                }
+
                 if (_picked.Count == 0 || !IsLoaded)
                 {
                     return;

@@ -49,15 +49,58 @@ namespace SecurityToolkit.Features
                 return;
             }
 
+            // "What if": for a change to roles or team membership, work out what each user gains or loses first.
+            // It works on the data the screen already loaded; with none (just after a change, say) there is no preview.
+            if (plan.Impact == null && plan.ImpactSummary == null && plan.Items.Any(AccessPreview.ChangesAccess) && _host.Security?.CachedGraph != null)
+            {
+                var changes = plan.Items.ToList();
+                _host.RunAsync("Working out what changes for each user...", security => Preview(security, changes), preview =>
+                {
+                    plan.Impact = preview.Key;
+                    plan.ImpactSummary = preview.Value;
+                    ReviewAndApply(plan, refresh, NothingApplied);
+                });
+                return;
+            }
+
+            ReviewAndApply(plan, refresh, NothingApplied);
+        }
+
+        /// <summary>
+        /// The access each user would gain or lose, and a one-line summary. A preview that cannot be read must never
+        /// stand in the way of the change itself, so a failure becomes the summary instead.
+        /// </summary>
+        private static KeyValuePair<IReadOnlyList<AccessChangeRow>, string> Preview(SecurityService security, IReadOnlyList<ChangeItem> items)
+        {
+            try
+            {
+                var graph = security.CachedGraph;
+                var swaps = graph == null ? new RoleSwap[0] : AccessPreview.Simulate(graph, items);
+                if (swaps.Count == 0)
+                {
+                    return new KeyValuePair<IReadOnlyList<AccessChangeRow>, string>(null, null);
+                }
+
+                var rows = AccessPreview.Compare(swaps, security.GetPrivilegeCatalog(), security.GetRolePrivileges(AccessPreview.RoleIdsNeeded(swaps)), security.GetTables());
+                return new KeyValuePair<IReadOnlyList<AccessChangeRow>, string>(rows, AccessPreview.Summarize(rows, swaps.Count));
+            }
+            catch (Exception ex)
+            {
+                return new KeyValuePair<IReadOnlyList<AccessChangeRow>, string>(null, "What changes for each user could not be worked out: " + ex.Message);
+            }
+        }
+
+        private void ReviewAndApply(ChangePlan plan, Action refresh, Action nothingApplied)
+        {
             if (!_ui.Review(plan, out var saveRestoreFile))
             {
-                NothingApplied();
+                nothingApplied();
                 return;
             }
 
             if (saveRestoreFile && !TrySaveRestoreFile(plan))
             {
-                NothingApplied();
+                nothingApplied();
                 return;
             }
 

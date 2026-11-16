@@ -26,5 +26,7 @@ namespace SecurityToolkit.UI
         public const string Team = "";
         public const string TeamShield = "";
         public const string CompareRoles = "";
+        public const string AllApps = "";
+        public const string Unlock = "\uE785";
     }
 }

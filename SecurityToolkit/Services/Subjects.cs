@@ -57,6 +57,23 @@ namespace SecurityToolkit.Services
                 case UserInfo user:
                     found.Add(User(user));
                     return found;
+                case Features.ApplicationUsersFeature.ApplicationRow app:
+                    found.Add(User(app.User));
+                    return found;
+                case ProfileMemberRow member when graph != null:
+                    var memberUser = member.UserId.HasValue ? graph.Users.FirstOrDefault(u => u.Id == member.UserId) : null;
+                    var memberTeam = member.TeamId.HasValue ? graph.Teams.FirstOrDefault(t => t.Id == member.TeamId) : null;
+                    if (memberUser != null)
+                    {
+                        found.Add(User(memberUser));
+                    }
+
+                    if (memberTeam != null)
+                    {
+                        found.Add(Team(memberTeam));
+                    }
+
+                    return found;
                 case TeamInfo team:
                     found.Add(Team(team));
                     return found;
@@ -126,7 +143,8 @@ namespace SecurityToolkit.Services
             switch (subject.Kind)
             {
                 case SubjectKind.User:
-                    return (row is UserInfo user && user.Id == subject.Id) || (row is PrincipalRow p && !p.IsTeam && p.Id == subject.Id);
+                    return (row is UserInfo user && user.Id == subject.Id) || (row is PrincipalRow p && !p.IsTeam && p.Id == subject.Id)
+                        || (row is Features.ApplicationUsersFeature.ApplicationRow app && app.User.Id == subject.Id);
                 case SubjectKind.Team:
                     return (row is TeamInfo team && team.Id == subject.Id) || (row is PrincipalRow t && t.IsTeam && t.Id == subject.Id);
                 case SubjectKind.Role:

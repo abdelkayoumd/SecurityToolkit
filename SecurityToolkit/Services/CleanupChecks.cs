@@ -16,6 +16,9 @@ namespace SecurityToolkit.Services
         /// <summary>The user or team the finding is about; not shown, used when acting on it.</summary>
         public Guid? UserId { get; set; }
         public Guid? TeamId { get; set; }
+
+        /// <summary>The role the finding is about, for a role that adds nothing.</summary>
+        public Guid? RoleId { get; set; }
     }
 
     /// <summary>One cleanup check and what it found.</summary>

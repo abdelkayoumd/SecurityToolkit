@@ -183,6 +183,18 @@ namespace SecurityToolkit.Services
                 Merge(plan, PlanUserRoles(graph, new[] { user }, held, false));
             }
 
+            // Roles that add nothing: remove just that role from just that user.
+            var roles = graph.Roles.ToDictionary(r => r.Id);
+            foreach (var row in rows.Where(r => r.Check == RedundantRoles.Title && r.RoleId.HasValue))
+            {
+                if (!users.TryGetValue(row.UserId.Value, out var user) || !roles.TryGetValue(row.RoleId.Value, out var role))
+                {
+                    continue;
+                }
+
+                Merge(plan, PlanUserRoles(graph, new[] { user }, new[] { new RoleChoice { RootKey = role.RootKey, Name = role.Name, Copies = 1 } }, false));
+            }
+
             return plan;
         }
 

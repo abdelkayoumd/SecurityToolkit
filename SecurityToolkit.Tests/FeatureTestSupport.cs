@@ -52,6 +52,7 @@ namespace SecurityToolkit.Tests
                                 ["domainname"] = u.DomainName,
                                 ["isdisabled"] = u.IsDisabled,
                                 ["accessmode"] = new OptionSetValue(u.AccessMode),
+                                ["applicationid"] = u.ApplicationId,
                                 ["businessunitid"] = new EntityReference("businessunit", u.BusinessUnitId.Value) { Name = u.BusinessUnitName }
                             });
                         }
@@ -131,6 +132,60 @@ namespace SecurityToolkit.Tests
                         }
 
                         break;
+                    case "fieldsecurityprofile" when org != null:
+                        result.Entities.Add(new Entity("fieldsecurityprofile", SalaryReaders) { ["name"] = "Salary readers" });
+                        result.Entities.Add(new Entity("fieldsecurityprofile", CreditManagers) { ["name"] = "Credit managers" });
+                        result.Entities.Add(new Entity("fieldsecurityprofile", UnusedProfile) { ["name"] = "Unused profile" });
+                        break;
+                    case "fieldpermission" when org != null:
+                        Entity Permission(Guid profile, string table, string column, int read, int update, int create) => new Entity("fieldpermission", Guid.NewGuid())
+                        {
+                            ["fieldsecurityprofileid"] = new EntityReference("fieldsecurityprofile", profile),
+                            ["entityname"] = table,
+                            ["attributelogicalname"] = column,
+                            ["canread"] = new OptionSetValue(read),
+                            ["canupdate"] = new OptionSetValue(update),
+                            ["cancreate"] = new OptionSetValue(create)
+                        };
+                        result.Entities.Add(Permission(SalaryReaders, "contact", "salary", 4, 0, 0));
+                        result.Entities.Add(Permission(CreditManagers, "account", "creditlimit", 4, 4, 0));
+                        result.Entities.Add(Permission(CreditManagers, "contact", "salary", 0, 4, 0));
+                        break;
+                    case "systemuserprofiles" when org != null:
+                        result.Entities.Add(new Entity("systemuserprofiles") { ["systemuserid"] = org.Ada.Id, ["fieldsecurityprofileid"] = SalaryReaders });
+                        result.Entities.Add(new Entity("systemuserprofiles") { ["systemuserid"] = org.Ada.Id, ["fieldsecurityprofileid"] = CreditManagers });
+                        break;
+                    case "teamprofiles" when org != null:
+                        result.Entities.Add(new Entity("teamprofiles") { ["teamid"] = org.Reviewers.Id, ["fieldsecurityprofileid"] = SalaryReaders });
+                        break;
+                    case "privilege" when org != null && ((QueryExpression)q).Criteria.Conditions.Any(c => c.AttributeName == "name" && c.Operator == ConditionOperator.NotNull):
+                        // Privileges with their names: two that are about no table, and one table privilege the outer join finds a table for.
+                        foreach (var name in OtherPrivilegeNames)
+                        {
+                            result.Entities.Add(new Entity("privilege", OtherId(name)) { ["name"] = name });
+                        }
+
+                        result.Entities.Add(new Entity("privilege", CatalogId("account", PrivilegeKind.Read))
+                        {
+                            ["name"] = "prvReadAccount",
+                            ["otc.objecttypecode"] = new AliasedValue("privilegeobjecttypecodes", "objecttypecode", "account")
+                        });
+                        break;
+                    case "roleprivileges" when org != null && ((QueryExpression)q).Criteria.Conditions.Any(c => c.AttributeName == "privilegeid" && c.Values.Contains(OtherId("prvExportToExcel"))):
+                        // Admin may export across the organization and bulk delete; Auditor may export within its business unit.
+                        var others = ((QueryExpression)q).Criteria.Conditions.First(c => c.AttributeName == "privilegeid").Values.Cast<Guid>().ToList();
+                        void Grant(RoleInfo role, string name, int mask)
+                        {
+                            if (others.Contains(OtherId(name)))
+                            {
+                                result.Entities.Add(new Entity("roleprivileges") { ["roleid"] = role.Id, ["privilegeid"] = OtherId(name), ["privilegedepthmask"] = mask });
+                            }
+                        }
+
+                        Grant(org.Admin, "prvExportToExcel", 8);
+                        Grant(org.Admin, "prvBulkDelete", 8);
+                        Grant(org.Auditor, "prvExportToExcel", 2);
+                        break;
                     case "privilege" when org != null && ((QueryExpression)q).Criteria.Conditions.Count == 0:
                         // The catalogue: all eight actions on account and contact.
                         foreach (var table in new[] { "account", "contact" })
@@ -199,6 +254,15 @@ namespace SecurityToolkit.Tests
             };
             return fake;
         }
+
+        /// <summary>The column security profiles of the sample organization.</summary>
+        internal static readonly Guid SalaryReaders = Guid.NewGuid(), CreditManagers = Guid.NewGuid(), UnusedProfile = Guid.NewGuid();
+
+        /// <summary>The privileges of the sample organization that are not about a table.</summary>
+        internal static readonly string[] OtherPrivilegeNames = { "prvExportToExcel", "prvBulkDelete" };
+
+        /// <summary>A stable id for a privilege that is not about a table.</summary>
+        internal static Guid OtherId(string name) => CatalogId("other:" + name, PrivilegeKind.Share);
 
         /// <summary>A stable id for the privilege "kind on table", so grants can refer to it.</summary>
         internal static Guid CatalogId(string table, PrivilegeKind kind)

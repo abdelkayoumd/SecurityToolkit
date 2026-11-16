@@ -111,7 +111,8 @@ namespace SecurityToolkit.UI
                 Margin = new Padding(8, 8, 0, 0)
             };
 
-            var list = ChangeList(plan.Items.Select(i => new[] { i.Action, i.Subject, i.Target }), new[] { "Action", "Who / what", "To" });
+            var changes = ChangeList(plan.Items.Select(i => new[] { i.Action, i.Subject, i.Target }), new[] { "Action", "Who / what", "To" });
+            var list = WithImpact(changes, plan);
 
             var bottom = new Panel { Dock = DockStyle.Bottom, Height = 0, BackColor = Theme.PageBackground };
             var bottomHeight = 0;
@@ -166,6 +167,61 @@ namespace SecurityToolkit.UI
         }
 
         public bool SaveRestoreFile => _restore.Checked;
+
+        /// <summary>
+        /// The list of changes, and when the plan changes roles or memberships, a second tab with what each user would
+        /// gain or lose ("what if"), losses first.
+        /// </summary>
+        private static Control WithImpact(Control changes, ChangePlan plan)
+        {
+            if (plan.Impact == null && string.IsNullOrEmpty(plan.ImpactSummary))
+            {
+                return changes;
+            }
+
+            var rows = plan.Impact ?? new AccessChangeRow[0];
+            var impact = ChangeList(rows.Select(r => new[] { r.User, r.Change, r.Table, r.Privilege, r.Before, r.After }),
+                new[] { "User", "Change", "Table", "Privilege", "Before", "After" });
+            impact.Name = "Impact";
+            foreach (ListViewItem item in impact.Items)
+            {
+                var row = rows[item.Index];
+                item.ForeColor = row.IsLoss ? Theme.Danger : Theme.Success;
+            }
+
+            var summary = new Label
+            {
+                Name = "ImpactSummary",
+                Text = plan.ImpactSummary ?? string.Empty,
+                Dock = DockStyle.Top,
+                Height = 30,
+                Padding = new Padding(10, 0, 0, 0),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Font = Theme.FontBold,
+                ForeColor = rows.Any(r => r.IsLoss) ? Theme.Danger : Theme.TextPrimary
+            };
+            var impactPage = new Panel { Dock = DockStyle.Fill, Visible = false };
+            impactPage.Controls.Add(impact);
+            impactPage.Controls.Add(summary);
+
+            var tabs = new TabStrip { Name = "ReviewTabs" };
+            tabs.AddTab($"Changes ({plan.Items.Count})");
+            tabs.AddTab($"What changes for each user ({rows.Count})");
+            var pages = new Panel { Dock = DockStyle.Fill };
+            changes.Dock = DockStyle.Fill;
+            pages.Controls.Add(changes);
+            pages.Controls.Add(impactPage);
+            tabs.SelectedIndexChanged += (s, e) =>
+            {
+                changes.Visible = tabs.SelectedIndex == 0;
+                impactPage.Visible = tabs.SelectedIndex == 1;
+            };
+
+            var page = new Panel { Dock = DockStyle.Fill };
+            page.Controls.Add(pages);
+            page.Controls.Add(tabs);
+            return page;
+        }
 
         internal static ListView ChangeList(IEnumerable<string[]> rows, string[] headers)
         {

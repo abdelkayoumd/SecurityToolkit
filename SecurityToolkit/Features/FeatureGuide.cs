@@ -69,6 +69,13 @@ namespace SecurityToolkit.Features
             },
             new GuideEntry
             {
+                FeatureId = "application-users", Section = GuideSection.LookUp,
+                Question = "Which apps act in this environment, and with which roles?",
+                Summary = "Application users listed apart from people, with every role they hold, directly or through a team.",
+                Steps = new[] { "The left lists the application users (app registrations), with how many roles each holds.", "Select one or more to see their roles on the right, and where each comes from.", "Right-click one to open it on another screen, for example to see what it can do." }
+            },
+            new GuideEntry
+            {
                 FeatureId = "user-access-matrix", Section = GuideSection.UnderstandAccess,
                 Question = "What can this user do?",
                 Summary = "Every table against the eight privileges, showing how far the user's roles reach.",
@@ -90,10 +97,17 @@ namespace SecurityToolkit.Features
             },
             new GuideEntry
             {
+                FeatureId = "column-security", Section = GuideSection.UnderstandAccess,
+                Question = "Who can read or update a secured column?",
+                Summary = "Column security profiles by profile (its secured columns and who holds it) or by user (every secured column they can read, update or create).",
+                Steps = new[] { "Show by profile: select a profile to see its secured columns, then the Members tab for its teams, their members and the users who hold it directly.", "Show by user: select a user to see every secured column their profiles open, and which profile gives each.", "System Administrators can read and update every secured column, whatever their profiles." }
+            },
+            new GuideEntry
+            {
                 FeatureId = "privilege-finder", Section = GuideSection.UnderstandAccess,
                 Question = "Which roles let people delete on a table?",
-                Summary = "Pick one, several or all privileges, a depth and tables, and see which roles grant them.",
-                Steps = new[] { "Choose the privilege (tick several, or all) and the minimum depth in the sentence above the lists.", "Select one or more tables on the left.", "The roles that grant it appear on the right. With several privileges, each one gets its own depth column." }
+                Summary = "Pick one, several or all privileges, a depth and tables (or a privilege that is not about a table), and see which roles grant them.",
+                Steps = new[] { "Choose the privilege (tick several, or all) and the minimum depth in the sentence above the lists.", "Select one or more tables on the left.", "The roles that grant it appear on the right. With several privileges, each one gets its own depth column.", "Switch Find roles by to other privileges for those that are not about a table: Export to Excel, Bulk Delete, Act on Behalf of Another User..." }
             },
             new GuideEntry
             {
@@ -120,8 +134,8 @@ namespace SecurityToolkit.Features
             {
                 FeatureId = "cleanup-report", Section = GuideSection.Review,
                 Question = "What can I tidy up?",
-                Summary = "Finds users, roles and teams that look forgotten, and lets you clean up the disabled users.",
-                Steps = new[] { "Read the checks on the left with their counts.", "Select a check to see only its findings.", "For disabled users, use the buttons to take them out of teams or remove their roles. " + ChangeNote }
+                Summary = "Finds users, roles and teams that look forgotten, and roles that add nothing, and lets you clean them up.",
+                Steps = new[] { "Read the checks on the left with their counts.", "Select a check to see only its findings.", "For disabled users, use the buttons to take them out of teams or remove their roles; for roles that add nothing, remove them. " + ChangeNote }
             },
             new GuideEntry
             {

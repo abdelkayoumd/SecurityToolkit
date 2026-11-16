@@ -39,6 +39,15 @@ namespace SecurityToolkit.Services
         /// <summary>Things that were skipped or need attention ("no copy of role X in business unit Y").</summary>
         public List<string> Notes { get; } = new List<string>();
 
+        /// <summary>
+        /// What the plan would change in what each affected user can do on tables ("what if"); null when it was not
+        /// worked out (the plan changes no role or membership, or the preview could not be read).
+        /// </summary>
+        public IReadOnlyList<AccessChangeRow> Impact { get; set; }
+
+        /// <summary>The one-line summary of <see cref="Impact"/>, or why there is none.</summary>
+        public string ImpactSummary { get; set; }
+
         /// <summary>True when every change in the plan can be undone.</summary>
         public bool IsReversible => Items.Count > 0 && Items.All(i => i.Inverse != null);
 

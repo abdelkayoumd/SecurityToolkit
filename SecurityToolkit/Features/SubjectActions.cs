@@ -34,6 +34,7 @@ namespace SecurityToolkit.Features
             new SubjectAction(SubjectKind.User, "user-access-matrix", "What can this user do?"),
             new SubjectAction(SubjectKind.User, "explain-access", "Why does this user have access?"),
             new SubjectAction(SubjectKind.User, "record-access", "Check their access to a record"),
+            new SubjectAction(SubjectKind.User, "column-security", "Which secured columns can they see?"),
             new SubjectAction(SubjectKind.User, "compare-users", "Compare with another user"),
             new SubjectAction(SubjectKind.User, "clone-user", "Copy this user's access to others"),
             new SubjectAction(SubjectKind.User, "assign-user-roles", "Add or remove roles"),

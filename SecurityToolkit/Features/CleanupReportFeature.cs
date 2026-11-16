@@ -49,6 +49,7 @@ namespace SecurityToolkit.Features
                 yield return CommandSeparator();
                 yield return Command(Glyphs.Remove, "Remove disabled users from teams", () => Act(CleanupChecks.DisabledInTeams));
                 yield return Command(Glyphs.Remove, "Remove roles from disabled users", () => Act(CleanupChecks.DisabledWithRoles));
+                yield return Command(Glyphs.Remove, "Remove roles that add nothing", () => Act(RedundantRoles.Title));
             }
 
             /// <summary>
@@ -88,6 +89,23 @@ namespace SecurityToolkit.Features
                 _checks = CleanupChecks.Run(Graph);
                 Master.SetData(_checks, "Title=Check", "Count=Findings");
                 ShowFindings(_checks);
+
+                // Roles that add nothing need what each role grants: read it, then add that check to the others.
+                var graph = Graph;
+                var roleIds = RedundantRoles.RoleIdsToRead(graph);
+                Host.RunAsync("Looking for roles that add nothing...", security => security.GetRolePrivileges(roleIds), grants =>
+                {
+                    if (Graph != graph)
+                    {
+                        return; // reloaded meanwhile
+                    }
+
+                    _checks = _checks.Where(c => c.Title != RedundantRoles.Title).Concat(new[] { RedundantRoles.Find(graph, grants) }).ToList();
+                    var picked = Master.GetSelected<CleanupCheck>().Select(c => c.Title).ToList();
+                    Master.SetData(_checks, "Title=Check", "Count=Findings");
+                    Master.SelectWhere(c => picked.Contains(((CleanupCheck)c).Title));
+                    ShowFindings(picked.Count == 0 ? _checks : _checks.Where(c => picked.Contains(c.Title)).ToList());
+                });
             }
 
             protected override void OnMasterSelectionChanged()

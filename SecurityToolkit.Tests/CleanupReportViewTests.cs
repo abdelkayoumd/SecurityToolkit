@@ -54,7 +54,8 @@ namespace SecurityToolkit.Tests
             {
                 var counts = checks.GetVisible<CleanupCheck>().ToDictionary(c => c.Title, c => c.Count);
 
-                Assert.Equal(6, counts.Count);
+                Assert.Equal(7, counts.Count); // the six graph checks, and roles that add nothing
+                Assert.Equal(1, counts[RedundantRoles.Title]);      // this organization has no privilege data, so a held role grants nothing
                 Assert.Equal(1, counts[CleanupChecks.NoRoles]);
                 Assert.Equal(2, counts[CleanupChecks.UnusedRoles]);
                 Assert.Equal(2, counts[CleanupChecks.TeamsWithoutRoles]);
@@ -66,8 +67,8 @@ namespace SecurityToolkit.Tests
         {
             Run((view, checks, findings) =>
             {
-                Assert.Equal(8, findings.GetVisible<CleanupRow>().Count());
-                Assert.NotNull(Info(view, "8 finding(s) across 6 checks"));
+                Assert.Equal(9, findings.GetVisible<CleanupRow>().Count());
+                Assert.NotNull(Info(view, "9 finding(s) across 7 checks"));
             });
         }
 
@@ -106,7 +107,7 @@ namespace SecurityToolkit.Tests
                 TeamMembersViewTests.Pump(() => findings.GetVisible<CleanupRow>().Count() == 1);
 
                 checks.ClearSelection();
-                TeamMembersViewTests.Pump(() => findings.GetVisible<CleanupRow>().Count() == 8);
+                TeamMembersViewTests.Pump(() => findings.GetVisible<CleanupRow>().Count() == 9);
             });
         }
 
@@ -118,7 +119,7 @@ namespace SecurityToolkit.Tests
                 var table = findings.GetTable();
 
                 Assert.Equal(new[] { "Check", "Item", "Detail", "Business Unit" }, table.Key);
-                Assert.Equal(8, table.Value.Count);
+                Assert.Equal(9, table.Value.Count);
                 Assert.All(table.Value, row => Assert.False(string.IsNullOrEmpty(row[0])));
             });
         }

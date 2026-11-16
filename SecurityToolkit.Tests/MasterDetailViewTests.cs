@@ -240,7 +240,8 @@ namespace SecurityToolkit.Tests
         {
             Run((view, master, detail, org) =>
             {
-                Assert.Empty(view.Commands.OfType<ComboBox>());
+                // The only drop-down on the command bar chooses what the list holds (tables or other privileges).
+                Assert.Equal(new[] { "FinderMode" }, view.Commands.OfType<ComboBox>().Select(c => c.Name));
                 Assert.Empty(view.Commands.OfType<CheckedDropDown>());
                 Assert.True(Sta.Find(view, c => c is FlowLayoutPanel p && p.Controls.OfType<ComboBox>().Count() == 1 && p.Controls.OfType<CheckedDropDown>().Count() == 1).Visible);
             });

@@ -19,6 +19,8 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   (and how many including its children). Select a unit and choose what to list: its users with their teams and
   roles, its teams, or the security roles in use there. Include child units, and export the list or the users in
   detail.
+- **Application users** – the app registrations acting in Dataverse, listed apart from people, with every role
+  they hold directly or through a team.
 - **Compare** – one screen, two tabs, differences only by default:
   - *How do two users differ?* – pick two users and see the differences side by side: business unit, security
     roles (however each user has them) and teams.
@@ -26,6 +28,11 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
     what only one of them grants and where one reaches further.
 - **Privilege finder** – pick tables, one, several or all privileges (Create, Read, Write, Delete, Append,
   Append To, Assign, Share) and a minimum depth, and see which roles grant them, with one depth column per privilege.
+  Switch to the other privileges (Export to Excel, Bulk Delete, Act on Behalf of Another User...) to find the roles
+  that grant those.
+- **Column security** – who can read or update secured columns. By profile: its secured columns, and who holds
+  it (teams, their members, and users directly). By user: every secured column their profiles open, and which
+  profile gives each right.
 - **A user's access** – one screen, three tabs, and the selected user follows you from tab to tab:
   - *What they can do* – every table against the eight privileges, each cell showing how far the user's roles
     reach (own records, business unit, parent and child units, or the whole organization), drawn with the same
@@ -42,12 +49,15 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   (measured by what the role can do, so it works in any language), who holds them directly or through a team,
   the built-in System Administrators and Customizers, disabled users and service accounts that still hold them,
   and users who have collected eight or more roles.
-- **Cleanup report** – six checks for things that look forgotten: active users with no role, disabled users
-  still in teams or holding roles, roles nobody holds, empty teams, and teams that carry no role. For disabled
-  users you can act on the findings: take them out of their teams or remove their roles, through the same
-  review, restore file and undo as every other change.
+- **Cleanup report** – seven checks for things that look forgotten or pointless: active users with no role,
+  disabled users still in teams or holding roles, roles nobody holds, empty teams, teams that carry no role, and
+  roles that add nothing (a role a user holds whose every privilege they already get from their other roles). You
+  can act on the findings: take disabled users out of their teams, remove their roles, or remove the roles that
+  add nothing, through the same review, restore file and undo as every other change.
 - **Assign** – one screen, three tabs: add or remove security roles for users, add or remove them for teams, and
   add users to owner teams or take them out. **Clone a user** copies one user's business unit, roles and teams onto others.
+- **See before you change** – the review of every change to roles or team membership has a second tab, "What
+  changes for each user": every table privilege each affected user gains or loses, losses first.
 - **Safe changes** – every change is listed for review before anything is sent, with notes on what was
   skipped and why. You can save a restore file first, see each change's result, and undo what succeeded. Try
   the Change screens on a development environment first.

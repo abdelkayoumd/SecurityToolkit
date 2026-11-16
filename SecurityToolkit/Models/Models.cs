@@ -12,8 +12,12 @@ namespace SecurityToolkit.Models
         public bool IsDisabled { get; set; }
         /// <summary>The user's access mode: 0 read-write, 1 administrative, 2 read, 3 support, 4 non-interactive.</summary>
         public int AccessMode { get; set; }
-        /// <summary>Service and application accounts (non-interactive access) are not people and rarely need roles in the usual way.</summary>
-        public bool IsServiceAccount => AccessMode == 4;
+        /// <summary>The Microsoft Entra application an application user stands for; null for a person.</summary>
+        public Guid? ApplicationId { get; set; }
+        /// <summary>An application user (an app registration acting in Dataverse), not a person.</summary>
+        public bool IsApplicationUser => ApplicationId.HasValue && ApplicationId.Value != Guid.Empty;
+        /// <summary>Service and application accounts (non-interactive access, or an application) are not people and rarely need roles in the usual way.</summary>
+        public bool IsServiceAccount => AccessMode == 4 || IsApplicationUser;
         public string Status => IsDisabled ? "Disabled" : "Active";
     }
 

@@ -49,11 +49,11 @@ Target: 17 screens become about 10. Result: 11 menu entries (Home, 4 to look up,
 
 | # | Item | Size | Depends on | Done when |
 |---|------|------|------------|-----------|
-| 16 | Non-table privileges in the Privilege finder (Export to Excel, Bulk Delete, Act on Behalf of Another User...) | M | | Roles holding a chosen miscellaneous privilege are listed |
-| 17 | Redundant roles: roles a user holds that add nothing beyond their other roles | M | | Listed in the Cleanup report, with the remove action |
-| 18 | "What if" preview: a user's access before and after adding or removing a role | M | 11 | Shown in the review step of every role change |
-| 19 | Application users view | S | | Listed apart from people, with their roles |
-| 20 | Column security profiles: who can read or update secured columns | L | | Profiles, members and secured columns per user |
+| 16 | Non-table privileges in the Privilege finder (Export to Excel, Bulk Delete, Act on Behalf of Another User...) | built | | Roles holding a chosen miscellaneous privilege are listed |
+| 17 | Redundant roles: roles a user holds that add nothing beyond their other roles | built | | Listed in the Cleanup report, with the remove action |
+| 18 | "What if" preview: a user's access before and after adding or removing a role | built (table privileges) | 11 | Shown in the review step of every role change |
+| 19 | Application users view | built | | Listed apart from people, with their roles |
+| 20 | Column security profiles: who can read or update secured columns | built | | Profiles, members and secured columns per user |
 
 ## 2.2.0 Over time and across environments
 

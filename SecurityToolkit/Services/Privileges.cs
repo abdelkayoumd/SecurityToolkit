@@ -27,6 +27,61 @@ namespace SecurityToolkit.Services
         Organization = 8
     }
 
+    /// <summary>A privilege that is not about a table (Export to Excel, Bulk Delete...): a "miscellaneous privilege".</summary>
+    internal sealed class OtherPrivilege
+    {
+        private static readonly HashSet<string> SmallWords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "a", "an", "and", "as", "at", "by", "for", "from", "in", "into", "of", "on", "or", "the", "to", "with"
+        };
+
+        public Guid Id { get; set; }
+
+        /// <summary>The privilege's own name, "prvExportToExcel".</summary>
+        public string Name { get; set; }
+
+        /// <summary>The name in words, "Export to Excel".</summary>
+        public string Label { get; set; }
+
+        /// <summary>"prvActOnBehalfOfAnotherUser" reads "Act on Behalf of Another User"; acronyms stay together ("prvUseCRM" reads "Use CRM").</summary>
+        public static string LabelOf(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return string.Empty;
+            }
+
+            var text = name.StartsWith("prv", StringComparison.Ordinal) ? name.Substring(3) : name;
+            var words = new List<string>();
+            var current = new System.Text.StringBuilder();
+            for (var i = 0; i < text.Length; i++)
+            {
+                var c = text[i];
+                var startsWord = i > 0 && char.IsUpper(c)
+                    && (char.IsLower(text[i - 1]) || char.IsDigit(text[i - 1]) || (i + 1 < text.Length && char.IsLower(text[i + 1]) && char.IsUpper(text[i - 1])));
+                if ((startsWord || c == '_' || c == ' ') && current.Length > 0)
+                {
+                    words.Add(current.ToString());
+                    current.Clear();
+                }
+
+                if (c != '_' && c != ' ')
+                {
+                    current.Append(c);
+                }
+            }
+
+            if (current.Length > 0)
+            {
+                words.Add(current.ToString());
+            }
+
+            return string.Join(" ", words.Select((w, i) => i > 0 && SmallWords.Contains(w) ? w.ToLowerInvariant() : w));
+        }
+
+        public override string ToString() => Label;
+    }
+
     internal sealed class RolePrivilegeRow
     {
         public string Table { get; set; }

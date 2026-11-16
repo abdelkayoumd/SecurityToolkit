@@ -96,8 +96,8 @@ namespace SecurityToolkit.Tests
                 Assert.Equal(new[]
                 {
                     "Home",
-                    "#LOOK UP", "Users and teams", "Teams and members", "Role holders", "Business units",
-                    "#UNDERSTAND ACCESS", "A user's access", "Privilege finder",
+                    "#LOOK UP", "Users and teams", "Teams and members", "Role holders", "Business units", "Application users",
+                    "#UNDERSTAND ACCESS", "A user's access", "Column security", "Privilege finder",
                     "#COMPARE", "Compare",
                     "#REVIEW", "Privileged users", "Cleanup report",
                     "#CHANGE", "Assign", "Clone a user"

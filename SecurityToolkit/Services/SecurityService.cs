@@ -28,6 +28,8 @@ namespace SecurityToolkit.Services
         private OrgDeleteReach _deleteReach;
         private readonly Dictionary<Guid, IReadOnlyList<RoleGrant>> _roleGrants = new Dictionary<Guid, IReadOnlyList<RoleGrant>>();
         private IReadOnlyDictionary<Guid, IReadOnlyList<PrivilegeTarget>> _catalog;
+        private IReadOnlyList<OtherPrivilege> _otherPrivileges;
+        private ColumnSecurity _columnSecurity;
         private SecurityGraph _graph;
         private IReadOnlyList<TableInfo> _tables;
         private readonly Dictionary<int, string> _typeCodes = new Dictionary<int, string>();
@@ -51,6 +53,8 @@ namespace SecurityToolkit.Services
             _graph = null;
             _tables = null;
             _catalog = null;
+            _otherPrivileges = null;
+            _columnSecurity = null;
             _deleteReach = null;
             _roleGrants.Clear();
             _typeCodes.Clear();
@@ -177,6 +181,94 @@ namespace SecurityToolkit.Services
 
             return Privileges.AtLeast(rows, minimum)
                 .OrderBy(r => r.Role, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.BusinessUnit, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>
+        /// The privileges that are not about a table: Export to Excel, Bulk Delete, Act on Behalf of Another User...
+        /// (the "Miscellaneous privileges" of the security role editor). Read once per connection.
+        /// </summary>
+        public IReadOnlyList<OtherPrivilege> GetOtherPrivileges()
+        {
+            if (_otherPrivileges != null)
+            {
+                return _otherPrivileges;
+            }
+
+            var query = new QueryExpression("privilege")
+            {
+                ColumnSet = new ColumnSet("privilegeid", "name"),
+                Criteria = { Conditions = { new ConditionExpression("name", ConditionOperator.NotNull) } },
+                LinkEntities =
+                {
+                    // An outer join: a privilege with no table has no row here, which is what marks it as "other".
+                    new LinkEntity("privilege", "privilegeobjecttypecodes", "privilegeid", "privilegeid", JoinOperator.LeftOuter)
+                    {
+                        Columns = new ColumnSet("objecttypecode"),
+                        EntityAlias = "otc"
+                    }
+                }
+            };
+
+            var found = new Dictionary<Guid, OtherPrivilege>();
+            var tied = new HashSet<Guid>();
+            foreach (var entity in RetrieveAll(query))
+            {
+                var table = entity.GetAttributeValue<AliasedValue>("otc.objecttypecode")?.Value;
+                if (table != null && !string.IsNullOrEmpty(table.ToString()) && table.ToString() != "none")
+                {
+                    tied.Add(entity.Id);
+                    continue;
+                }
+
+                var name = entity.GetAttributeValue<string>("name");
+                found[entity.Id] = new OtherPrivilege { Id = entity.Id, Name = name, Label = OtherPrivilege.LabelOf(name) };
+            }
+
+            return _otherPrivileges = found.Values.Where(p => !tied.Contains(p.Id))
+                .OrderBy(p => p.Label, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>
+        /// Every role record that grants one of the given other privileges at <paramref name="minimum"/> depth or wider:
+        /// one row per role and privilege, the privilege's name in <see cref="RolePrivilegeRow.Table"/>.
+        /// </summary>
+        public IReadOnlyList<RolePrivilegeRow> FindRolesWithOtherPrivileges(IEnumerable<OtherPrivilege> privileges, PrivilegeDepth minimum)
+        {
+            var asked = privileges.GroupBy(p => p.Id).ToDictionary(g => g.Key, g => g.First());
+            var rows = new List<RolePrivilegeRow>();
+            if (asked.Count == 0)
+            {
+                return rows;
+            }
+
+            var grantQuery = new QueryExpression("roleprivileges")
+            {
+                ColumnSet = new ColumnSet("roleid", "privilegeid", "privilegedepthmask"),
+                Criteria = { Conditions = { new ConditionExpression("privilegeid", ConditionOperator.In, asked.Keys.Cast<object>().ToArray()) } }
+            };
+
+            var roles = GetRoles().ToDictionary(r => r.Id);
+            foreach (var grant in RetrieveAll(grantQuery))
+            {
+                if (!roles.TryGetValue(grant.GetAttributeValue<Guid>("roleid"), out var role)
+                    || !asked.TryGetValue(grant.GetAttributeValue<Guid>("privilegeid"), out var privilege))
+                {
+                    continue;
+                }
+
+                var depth = Privileges.DepthFromMask(grant.GetAttributeValue<int>("privilegedepthmask"));
+                rows.Add(new RolePrivilegeRow
+                {
+                    Table = privilege.Label,
+                    Role = role.Name,
+                    BusinessUnit = role.BusinessUnitName,
+                    Depth = Privileges.Label(depth),
+                    DepthLevel = (int)depth
+                });
+            }
+
+            return Privileges.AtLeast(rows, minimum)
+                .OrderBy(r => r.Table, StringComparer.CurrentCultureIgnoreCase).ThenBy(r => r.Role, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         /// <summary>
@@ -603,7 +695,7 @@ namespace SecurityToolkit.Services
         {
             return _users ?? (_users = Fetch(new QueryExpression("systemuser")
             {
-                ColumnSet = new ColumnSet("fullname", "domainname", "businessunitid", "isdisabled", "accessmode"),
+                ColumnSet = new ColumnSet("fullname", "domainname", "businessunitid", "isdisabled", "accessmode", "applicationid"),
                 // Excludes the "# ..." system placeholders, as the former teams_listing tool did.
                 Criteria = { Conditions = { new ConditionExpression("fullname", ConditionOperator.DoesNotBeginWith, "#") } },
                 Orders = { new OrderExpression("fullname", OrderType.Ascending) }
@@ -615,8 +707,43 @@ namespace SecurityToolkit.Services
                 BusinessUnitId = e.GetAttributeValue<EntityReference>("businessunitid")?.Id,
                 BusinessUnitName = e.GetAttributeValue<EntityReference>("businessunitid")?.Name,
                 IsDisabled = e.GetAttributeValue<bool>("isdisabled"),
-                AccessMode = e.GetAttributeValue<OptionSetValue>("accessmode")?.Value ?? 0
+                AccessMode = e.GetAttributeValue<OptionSetValue>("accessmode")?.Value ?? 0,
+                ApplicationId = e.GetAttributeValue<Guid?>("applicationid")
             }));
+        }
+
+        /// <summary>
+        /// Column security: the profiles, what each allows on its secured columns, and which users and teams hold them.
+        /// Read once per connection.
+        /// </summary>
+        public ColumnSecurity GetColumnSecurity()
+        {
+            if (_columnSecurity != null)
+            {
+                return _columnSecurity;
+            }
+
+            const int Allowed = 4; // fieldpermission's canread, canupdate and cancreate: 4 allowed, 0 not allowed
+            var profiles = Fetch(new QueryExpression("fieldsecurityprofile") { ColumnSet = new ColumnSet("name", "description") },
+                e => new ColumnProfile { Id = e.Id, Name = e.GetAttributeValue<string>("name"), Description = e.GetAttributeValue<string>("description") });
+            var permissions = Fetch(new QueryExpression("fieldpermission")
+            {
+                ColumnSet = new ColumnSet("fieldsecurityprofileid", "entityname", "attributelogicalname", "canread", "canupdate", "cancreate")
+            }, e => new ColumnPermission
+            {
+                ProfileId = e.GetAttributeValue<EntityReference>("fieldsecurityprofileid")?.Id ?? Guid.Empty,
+                Table = e.GetAttributeValue<string>("entityname"),
+                Column = e.GetAttributeValue<string>("attributelogicalname"),
+                CanRead = e.GetAttributeValue<OptionSetValue>("canread")?.Value == Allowed,
+                CanUpdate = e.GetAttributeValue<OptionSetValue>("canupdate")?.Value == Allowed,
+                CanCreate = e.GetAttributeValue<OptionSetValue>("cancreate")?.Value == Allowed
+            });
+            var users = Fetch(new QueryExpression("systemuserprofiles") { ColumnSet = new ColumnSet("systemuserid", "fieldsecurityprofileid") },
+                e => new KeyValuePair<Guid, Guid>(e.GetAttributeValue<Guid>("systemuserid"), e.GetAttributeValue<Guid>("fieldsecurityprofileid")));
+            var teams = Fetch(new QueryExpression("teamprofiles") { ColumnSet = new ColumnSet("teamid", "fieldsecurityprofileid") },
+                e => new KeyValuePair<Guid, Guid>(e.GetAttributeValue<Guid>("teamid"), e.GetAttributeValue<Guid>("fieldsecurityprofileid")));
+
+            return _columnSecurity = new ColumnSecurity(profiles, permissions, users, teams);
         }
 
         public IReadOnlyList<RoleInfo> GetRoles()
