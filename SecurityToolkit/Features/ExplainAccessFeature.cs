@@ -18,7 +18,7 @@ namespace SecurityToolkit.Features
     internal sealed class ExplainAccessFeature : IFeature
     {
         public string Id => "explain-access";
-        public string Title => "Explain access";
+        public string Title => "Why do they have access?";
         public string Glyph => Glyphs.Help;
         public FeatureGroup Group => FeatureGroup.UnderstandAccess;
         public int Order => 20;

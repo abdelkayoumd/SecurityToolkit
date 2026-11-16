@@ -325,3 +325,34 @@ namespace SecurityToolkit.Tests
         }
     }
 }
+
+namespace SecurityToolkit.Tests
+{
+    public class ScreenNameTests
+    {
+        [Fact]
+        public void ATab_IsNamedByItsMenuEntryAndItsQuestion()
+        {
+            Assert.Equal("A user's access › Why do they have access?", FeatureRegistry.ScreenName("explain-access"));
+            Assert.Equal("Compare › How do two roles differ?", FeatureRegistry.ScreenName("compare-roles"));
+            Assert.Equal("Assign › Which teams should these users be in?", FeatureRegistry.ScreenName("assign-team-membership"));
+            Assert.Equal("Privilege finder", FeatureRegistry.ScreenName("privilege-finder"));
+            Assert.Null(FeatureRegistry.ScreenName("nope"));
+        }
+
+        [Fact]
+        public void EveryTab_IsTitledWithTheQuestionOnItsCard()
+        {
+            foreach (var workspace in FeatureRegistry.CreateAll().OfType<IWorkspaceFeature>())
+            {
+                var view = (WorkspaceView)null;
+                Sta.Run(() =>
+                {
+                    view = (WorkspaceView)workspace.CreateView(new TestHost());
+                    Assert.Equal(workspace.Parts.Select(p => p.Title), view.Tabs.Select(t => t.Question));
+                    view.Dispose();
+                });
+            }
+        }
+    }
+}

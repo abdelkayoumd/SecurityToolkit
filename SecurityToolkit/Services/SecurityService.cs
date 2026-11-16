@@ -429,7 +429,7 @@ namespace SecurityToolkit.Services
 
         /// <summary>
         /// How far each of the given role records grants <paramref name="kind"/> on <paramref name="table"/>, for the
-        /// ones that grant it at all. Reads only the privileges of those roles (the same data "What can a user do?"
+        /// ones that grant it at all. Reads only the privileges of those roles (the same data "What can they do?"
         /// uses), instead of every grant of the privilege in the whole organization.
         /// </summary>
         public IReadOnlyDictionary<Guid, PrivilegeDepth> GetRoleGrantsFor(IEnumerable<Guid> roleIds, string table, PrivilegeKind kind)

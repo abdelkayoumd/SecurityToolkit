@@ -38,7 +38,7 @@ namespace SecurityToolkit.Features
     internal sealed class RecordAccessFeature : IFeature
     {
         public string Id => "record-access";
-        public string Title => "Record access";
+        public string Title => "Can they open this record?";
         public string Glyph => Glyphs.RecordAccess;
         public FeatureGroup Group => FeatureGroup.UnderstandAccess;
         public int Order => 25;
@@ -209,7 +209,7 @@ namespace SecurityToolkit.Features
                 yield return CommandSeparator();
                 yield return Command(Theme.GlyphClearSelection, "Clear selection", Master.ClearSelection);
                 yield return Command(Theme.GlyphDownload, "Export to Excel", () => ExportUi.SaveGrid(this, _tabs.SelectedIndex == 0 ? Grid : _sharesGrid,
-                    _tabs.SelectedIndex == 0 ? "RecordAccess.xlsx" : "RecordSharing.xlsx", _tabs.SelectedIndex == 0 ? "Record access" : "Shared with"));
+                    _tabs.SelectedIndex == 0 ? "RecordAccess.xlsx" : "RecordSharing.xlsx", _tabs.SelectedIndex == 0 ? "Access to the record" : "Shared with"));
                 yield return new Label { Text = "Check access for", AutoSize = true, ForeColor = Theme.TextSecondary, Margin = new Padding(14, 12, 4, 0) };
                 _cmbPrincipal = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 90, Margin = new Padding(0, 8, 8, 0), Font = Theme.FontRegular, Name = "PrincipalType" };
                 _cmbPrincipal.Items.AddRange(new object[] { "a user", "a team" });

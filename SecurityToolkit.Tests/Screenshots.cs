@@ -443,9 +443,11 @@ namespace SecurityToolkit.Tests
                 form.ClientSize = new Size(1600, 720);
                 Wait(300);
                 Open("user-access-matrix");
-                LoadedWithoutSelection("user-access-matrix");
+                // Same screen as the record check: the user picked there comes along, so the list is not empty here.
+                Until(() => Grids("user-access-matrix")[0].GetVisible<object>().Any());
                 MasterDetailHarness.Select<UserInfo>(Grids("user-access-matrix")[0], u => u.FullName == "Chen Wei");
-                Until(() => Grids("user-access-matrix")[1].GetVisible<MatrixRow>().Any());
+                Until(() => Grids("user-access-matrix")[1].GetVisible<MatrixRow>().Any(r => true) && Grids("user-access-matrix")[0].GetSelected<UserInfo>().Any(u => u.FullName == "Chen Wei"));
+                Wait(500);
                 Capture("user-access-matrix");
                 form.ClientSize = WindowSize;
                 Wait(300);

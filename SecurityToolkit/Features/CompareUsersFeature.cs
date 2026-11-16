@@ -15,7 +15,7 @@ namespace SecurityToolkit.Features
     internal sealed class CompareUsersFeature : IFeature
     {
         public string Id => "compare-users";
-        public string Title => "Two users";
+        public string Title => "How do two users differ?";
         public string Glyph => Glyphs.Compare;
         public FeatureGroup Group => FeatureGroup.Compare;
         public int Order => 10;

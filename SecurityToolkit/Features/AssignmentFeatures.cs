@@ -12,7 +12,7 @@ namespace SecurityToolkit.Features
     internal sealed class UserRolesFeature : IFeature
     {
         public string Id => "assign-user-roles";
-        public string Title => "Roles for users";
+        public string Title => "Which roles should these users have?";
         public string Glyph => Glyphs.AddPerson;
         public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 10;
@@ -73,7 +73,7 @@ namespace SecurityToolkit.Features
     internal sealed class TeamRolesFeature : IFeature
     {
         public string Id => "assign-team-roles";
-        public string Title => "Roles for teams";
+        public string Title => "Which roles should these teams have?";
         public string Glyph => Glyphs.TeamShield;
         public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 20;
@@ -125,7 +125,7 @@ namespace SecurityToolkit.Features
     internal sealed class TeamMembershipFeature : IFeature
     {
         public string Id => "assign-team-membership";
-        public string Title => "Team membership";
+        public string Title => "Which teams should these users be in?";
         public string Glyph => Glyphs.Swap;
         public FeatureGroup Group => FeatureGroup.Change;
         public int Order => 30;

@@ -12,12 +12,12 @@ namespace SecurityToolkit.Features
     /// <summary>
     /// "What can this user do?" Pick a user on the left; the right is a grid of every table against the eight
     /// privileges, each cell showing how far the user's roles (direct and through teams) reach, shaded by reach.
-    /// The reverse of Explain access, which starts from one privilege and lists the routes to it.
+    /// The reverse of the "Why do they have access?" tab, which starts from one privilege and lists the routes to it.
     /// </summary>
     internal sealed class UserAccessMatrixFeature : IFeature
     {
         public string Id => "user-access-matrix";
-        public string Title => "A user's access";
+        public string Title => "What can they do?";
         public string Glyph => Glyphs.Grid;
         public FeatureGroup Group => FeatureGroup.UnderstandAccess;
         public int Order => 10;

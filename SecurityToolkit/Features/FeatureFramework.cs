@@ -202,6 +202,22 @@ namespace SecurityToolkit.Features
             return workspace?.Id ?? id;
         }
 
+        /// <summary>
+        /// How a screen is named for the user: its menu entry, and for a tab the question it answers after it
+        /// ("A user's access › Why do they have access?"). Null for an unknown id.
+        /// </summary>
+        public static string ScreenName(string id)
+        {
+            var screen = Find(id);
+            if (screen == null)
+            {
+                return null;
+            }
+
+            var menuId = MenuIdOf(id);
+            return string.Equals(menuId, screen.Id, StringComparison.OrdinalIgnoreCase) ? screen.Title : Find(menuId).Title + " › " + screen.Title;
+        }
+
         /// <summary>Every menu entry and every tab of a workspace.</summary>
         public static IEnumerable<IFeature> Everything()
         {

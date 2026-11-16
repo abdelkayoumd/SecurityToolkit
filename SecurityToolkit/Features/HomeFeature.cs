@@ -165,7 +165,9 @@ namespace SecurityToolkit.Features
                     var row = new FlowLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Margin = new Padding(0), WrapContents = true };
                     foreach (var entry in entries)
                     {
-                        var card = new GuideCard(entry, known[entry.FeatureId].Title, known[entry.FeatureId].Glyph);
+                        // The link names the menu entry the card opens, so it matches what the menu shows.
+                        var menu = known[FeatureRegistry.MenuIdOf(entry.FeatureId)];
+                        var card = new GuideCard(entry, menu.Title, known[entry.FeatureId].Glyph);
                         var target = entry.FeatureId;
                         card.Click += (s, e) => Host.Navigate(target);
                         row.Controls.Add(card);

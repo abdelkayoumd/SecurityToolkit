@@ -41,9 +41,9 @@ A major version because the menu changes.
 | 12 | One Compare screen for two users or two roles | built | | One menu entry |
 | 13 | One Assign screen for roles for users, roles for teams and team membership | built | | One menu entry, same review and undo |
 | 14 | Sentence pattern on Explain access and Compare, using the shared dropdowns | built | 11, 12 | Each screen states its question and result in one sentence |
-| 15 | Home, "How it works", README and screenshots updated for the new menu | S | 11 to 14 | No reference to a removed screen |
+| 15 | Home, "How it works", README and screenshots updated for the new menu | built | 11 to 14 | No reference to a removed screen |
 
-Target: 17 screens become about 10.
+Target: 17 screens become about 10. Result: 11 menu entries (Home, 4 to look up, 2 to understand access, Compare, 2 reviews, Assign and Clone a user).
 
 ## 2.1.0 Deeper answers
 

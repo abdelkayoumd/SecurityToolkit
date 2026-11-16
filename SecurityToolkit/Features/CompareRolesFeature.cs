@@ -15,7 +15,7 @@ namespace SecurityToolkit.Features
     internal sealed class CompareRolesFeature : IFeature
     {
         public string Id => "compare-roles";
-        public string Title => "Two roles";
+        public string Title => "How do two roles differ?";
         public string Glyph => Glyphs.CompareRoles;
         public FeatureGroup Group => FeatureGroup.Compare;
         public int Order => 20;

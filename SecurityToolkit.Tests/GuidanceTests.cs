@@ -215,6 +215,23 @@ namespace SecurityToolkit.Tests
         }
 
         [Fact]
+        public void EveryCard_NamesAnEntryOfTheMenu_NotARemovedScreen()
+        {
+            WithHome((view, host) =>
+            {
+                var menu = FeatureRegistry.CreateAll().Select(f => f.Title).ToList();
+                foreach (var card in Cards(view))
+                {
+                    var link = (string)card.GetType().GetField("_screen", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(card);
+                    Assert.True(menu.Contains(link), card.Tag + " links to \"" + link + "\", which is not in the menu");
+                }
+
+                var whyCard = Cards(view).Single(c => (string)c.Tag == "explain-access");
+                Assert.Equal("A user's access", whyCard.GetType().GetField("_screen", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(whyCard));
+            });
+        }
+
+        [Fact]
         public void TheCardsAreGroupedUnderHeadings_AndTheChangeGroupSaysItIsReviewed()
         {
             WithHome((view, host) =>
