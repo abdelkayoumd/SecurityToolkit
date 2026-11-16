@@ -30,7 +30,7 @@ Each release is shippable on its own; the order inside a release is the build or
 | 9 | Remember state per environment: last screen, filters, splitters, recent users | built (last screen, options, recent items; the panes have no splitters to remember) | | Reopening the tool restores the last view |
 | 10 | Consistency: one export command name, F5 refresh, Ctrl+E export, "loaded at 10:42" next to Refresh | built | | Same on all screens |
 
-## 2.0.0 Simplify: fewer screens, same answers
+## 2.0.0 Simplify: fewer screens, same answers (released in 2.1.0, 2026-11-16)
 
 A major version because the menu changes.
 
@@ -45,7 +45,7 @@ A major version because the menu changes.
 
 Target: 17 screens become about 10. Result: 11 menu entries (Home, 4 to look up, 2 to understand access, Compare, 2 reviews, Assign and Clone a user).
 
-## 2.1.0 Deeper answers
+## 2.1.0 Deeper answers (released 2026-11-16)
 
 | # | Item | Size | Depends on | Done when |
 |---|------|------|------------|-----------|
