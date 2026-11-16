@@ -54,9 +54,9 @@ namespace SecurityToolkit.UI
             // Back to the screen used last time in this environment, unless another screen was opened already.
             _environment = e.ConnectionDetail?.WebApplicationUrl ?? e.ConnectionDetail?.OrganizationFriendlyName;
             var last = _state.LastFeature(_environment);
-            if (last != null && _current?.FeatureId == "home" && _features.Any(f => string.Equals(f.Id, last, StringComparison.OrdinalIgnoreCase)))
+            if (last != null && _current?.FeatureId == "home" && FeatureRegistry.Find(last) != null)
             {
-                _rail.Select(last);
+                ((IFeatureHost)this).Navigate(last);
             }
         }
 
@@ -230,7 +230,18 @@ namespace SecurityToolkit.UI
             _lblLoaded.Visible = at.HasValue;
         }
 
-        /// <summary>Ticks the command-bar options the way they were left last time, and remembers every later change.</summary>
+        /// <summary>
+        /// Ticks the command-bar options the way they were left last time, and remembers every later change. Each tab of
+        /// a workspace keeps its options under its own id.
+        /// </summary>
+        private void RestoreOptions(FeatureView view)
+        {
+            foreach (var part in view.Parts)
+            {
+                RestoreOptions(part.FeatureId, part);
+            }
+        }
+
         private void RestoreOptions(string featureId, FeatureView view)
         {
             foreach (var box in view.Commands.OfType<CheckBox>())
@@ -291,9 +302,30 @@ namespace SecurityToolkit.UI
                 view.FeatureId = id;
                 _views[id] = view;
                 _content.Controls.Add(view);
-                RestoreOptions(id, view);
+                RestoreOptions(view);
+                var created = view;
+                created.CommandsChanged += (s, e) =>
+                {
+                    if (_current == created)
+                    {
+                        _banner.HideBanner();
+                        ShowCommands(created);
+                        RememberLocation(created);
+                    }
+                };
             }
 
+            ShowCommands(view);
+
+            _current?.SendToBack();
+            _current = view;
+            view.BringToFront();
+            view.OnActivated();
+            RememberLocation(view);
+        }
+
+        private void ShowCommands(FeatureView view)
+        {
             _commandBar.SuspendLayout();
             _commandBar.Controls.Clear();
             foreach (var command in view.Commands)
@@ -303,14 +335,13 @@ namespace SecurityToolkit.UI
 
             _commandBar.Controls.Add(_lblLoaded);
             ShowLoadedTime();
-
             _commandBar.ResumeLayout();
+        }
 
-            _current?.SendToBack();
-            _current = view;
-            view.BringToFront();
-            view.OnActivated();
-            _state.SetLastFeature(_environment, id);
+        /// <summary>The screen (or tab) in front is where the tool reopens next time in this environment.</summary>
+        private void RememberLocation(FeatureView view)
+        {
+            _state.SetLastFeature(_environment, view.ScreenId);
             SaveSettings();
         }
 
@@ -339,17 +370,31 @@ namespace SecurityToolkit.UI
 
         void IFeatureHost.Navigate(string featureId)
         {
-            _rail.Select(featureId);
+            ShowScreen(featureId);
         }
 
         void IFeatureHost.Open(string featureId, Subject subject)
         {
             _state.AddRecent(_environment, subject);
-            _rail.Select(featureId);
-            if (_views.TryGetValue(featureId, out var view))
+            ShowScreen(featureId)?.ShowSubject(subject);
+        }
+
+        /// <summary>Opens a screen by id: its menu entry, and the right tab when it is part of a workspace.</summary>
+        private FeatureView ShowScreen(string featureId)
+        {
+            var menuId = FeatureRegistry.MenuIdOf(featureId);
+            _rail.Select(menuId);
+            if (!_views.TryGetValue(menuId, out var view))
             {
-                view.ShowSubject(subject);
+                return null;
             }
+
+            if (!string.Equals(menuId, featureId, StringComparison.OrdinalIgnoreCase))
+            {
+                view.ShowPart(featureId);
+            }
+
+            return view;
         }
 
         void IFeatureHost.ShowMessage(BannerKind kind, string message)

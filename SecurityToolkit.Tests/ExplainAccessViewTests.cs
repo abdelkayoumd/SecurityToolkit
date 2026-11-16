@@ -171,7 +171,7 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void ItIsListedUnderItsGroup_BetweenTheMatrixAndThePrivilegeFinder()
         {
-            var ids = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
+            var ids = FeatureRegistry.Everything().Select(f => f.Id).ToList(); // menu entries, each workspace followed by its tabs
 
             Assert.Equal(FeatureGroup.UnderstandAccess, new ExplainAccessFeature().Group);
             Assert.Equal(ids.IndexOf("user-access-matrix") + 1, ids.IndexOf("explain-access"));

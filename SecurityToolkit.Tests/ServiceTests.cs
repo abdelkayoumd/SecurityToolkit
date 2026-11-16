@@ -350,7 +350,7 @@ namespace SecurityToolkit.Tests
             var expected = new Dictionary<string, FeatureGroup>
             {
                 ["users-and-teams"] = FeatureGroup.LookUp, ["team-members"] = FeatureGroup.LookUp, ["users-by-role"] = FeatureGroup.LookUp, ["business-unit-tree"] = FeatureGroup.LookUp,
-                ["user-access-matrix"] = FeatureGroup.UnderstandAccess, ["explain-access"] = FeatureGroup.UnderstandAccess, ["privilege-finder"] = FeatureGroup.UnderstandAccess,
+                ["user-access"] = FeatureGroup.UnderstandAccess, ["privilege-finder"] = FeatureGroup.UnderstandAccess,
                 ["compare-users"] = FeatureGroup.Compare, ["compare-roles"] = FeatureGroup.Compare,
                 ["privileged-users"] = FeatureGroup.Review, ["cleanup-report"] = FeatureGroup.Review
             };

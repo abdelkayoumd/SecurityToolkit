@@ -9,6 +9,8 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Deterministic>true</Deterministic>
+    <!-- A wildcard version (see Properties/AssemblyInfo.cs) needs a non-deterministic build: local Debug builds only. -->
+    <Deterministic Condition="'$(Configuration)' == 'Debug'">false</Deterministic>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 

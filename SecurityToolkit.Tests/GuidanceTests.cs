@@ -16,7 +16,7 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void EveryScreen_ExceptHome_HasGuideText()
         {
-            var missing = FeatureRegistry.CreateAll().Where(f => f.Id != "home" && FeatureGuide.Find(f.Id) == null).Select(f => f.Id).ToList();
+            var missing = FeatureRegistry.Everything().Where(f => f.Id != "home" && !(f is IWorkspaceFeature) && FeatureGuide.Find(f.Id) == null).Select(f => f.Id).ToList();
 
             Assert.True(missing.Count == 0, "No guide text for: " + string.Join(", ", missing));
         }
@@ -24,7 +24,7 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void EveryGuideEntry_BelongsToARealScreen()
         {
-            var ids = new HashSet<string>(FeatureRegistry.CreateAll().Select(f => f.Id));
+            var ids = new HashSet<string>(FeatureRegistry.Everything().Select(f => f.Id));
 
             Assert.All(FeatureGuide.All, e => Assert.Contains(e.FeatureId, ids));
         }
@@ -70,7 +70,7 @@ namespace SecurityToolkit.Tests
         {
             Sta.Run(() =>
             {
-                var feature = FeatureRegistry.CreateAll().Single(f => f.Id == featureId);
+                var feature = FeatureRegistry.Find(featureId);
                 var view = feature.CreateView(new TestHost());
                 var form = new Form { Size = new Size(1100, 500) };
                 form.Controls.Add(view);

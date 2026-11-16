@@ -47,7 +47,7 @@ namespace SecurityToolkit.Tests
         {
             Sta.Run(() =>
             {
-                foreach (var feature in FeatureRegistry.CreateAll())
+                foreach (var feature in FeatureRegistry.Everything())
                 {
                     var host = new DisconnectedHost();
                     var view = feature.CreateView(host);

@@ -341,8 +341,10 @@ namespace SecurityToolkit.Tests
                 var rail = (NavRail)Field(shell, "_rail");
                 var views = (Dictionary<string, FeatureView>)Field(shell, "_views");
 
-                void Open(string id) { rail.Select(id); Wait(300); }
-                FilterableGrid[] Grids(string id) => FindGrids(views[id]);
+                void Open(string id) { ((IFeatureHost)shell).Navigate(id); Wait(300); }
+                // A tab of a workspace is found through the workspace's view.
+                FeatureView View(string id) => views[FeatureRegistry.MenuIdOf(id)].Parts.First(p => p.FeatureId == id);
+                FilterableGrid[] Grids(string id) => FindGrids(View(id));
                 void Capture(string name) { Wait(400); Save(shell, views, Path.Combine(output, name + ".png")); }
                 void Until(Func<bool> condition)
                 {
@@ -366,10 +368,10 @@ namespace SecurityToolkit.Tests
 
                 // Users and teams: the user list and, for a selected user, the tree of direct and inherited roles.
                 Open("users-and-teams");
-                Click(views["users-and-teams"], "Load users");
+                Click(View("users-and-teams"), "Load users");
                 LoadedWithoutSelection("users-and-teams");
                 MasterDetailHarness.Select<UserInfo>(Grids("users-and-teams")[0], u => u.FullName == "Chen Wei");
-                var tree = FindControls<TreeView>(views["users-and-teams"]).Single();
+                var tree = FindControls<TreeView>(View("users-and-teams")).Single();
                 Until(() => tree.Nodes.Count == 1 && tree.Nodes[0].Text.StartsWith("Chen Wei"));
                 Capture("users-and-teams");
 
@@ -389,7 +391,7 @@ namespace SecurityToolkit.Tests
 
                 // Business unit tree: the hierarchy with a unit's contents.
                 Open("business-unit-tree");
-                var buTree = FindControls<TreeView>(views["business-unit-tree"]).Single();
+                var buTree = FindControls<TreeView>(View("business-unit-tree")).Single();
                 Until(() => buTree.Nodes.Count > 0);
                 var buNode = buTree.Nodes[0].Nodes.Count > 0 ? buTree.Nodes[0].Nodes[0] : buTree.Nodes[0];
                 buTree.SelectedNode = buNode;
@@ -406,8 +408,8 @@ namespace SecurityToolkit.Tests
                 // Privilege finder.
                 Open("privilege-finder");
                 LoadedWithoutSelection("privilege-finder");
-                var combos = FindControls<ComboBox>(views["privilege-finder"]).OrderBy(c => c.PointToScreen(Point.Empty).X).ToArray();
-                FindControls<CheckedDropDown>(views["privilege-finder"]).Single().SetChecked(new[] { 3 }); // Delete
+                var combos = FindControls<ComboBox>(View("privilege-finder")).OrderBy(c => c.PointToScreen(Point.Empty).X).ToArray();
+                FindControls<CheckedDropDown>(View("privilege-finder")).Single().SetChecked(new[] { 3 }); // Delete
                 combos[0].SelectedIndex = 1; // Business unit or wider
                 MasterDetailHarness.Select<TableInfo>(Grids("privilege-finder")[0], t => t.LogicalName == "account");
                 Until(() => Grids("privilege-finder")[1].GetVisible<RolePrivilegeRow>().Any());
@@ -416,7 +418,7 @@ namespace SecurityToolkit.Tests
                 // Why does a user have access? Chen Wei reaches Account two ways: directly and through two teams.
                 Open("explain-access");
                 LoadedWithoutSelection("explain-access");
-                var explainCombos = FindControls<ComboBox>(views["explain-access"]).OrderBy(c => c.PointToScreen(Point.Empty).X).ToArray();
+                var explainCombos = FindControls<ComboBox>(View("explain-access")).OrderBy(c => c.PointToScreen(Point.Empty).X).ToArray();
                 explainCombos[0].SelectedIndex = 3; // Delete
                 explainCombos[1].SelectedIndex = Enumerable.Range(0, explainCombos[1].Items.Count).First(i => explainCombos[1].Items[i].ToString().StartsWith("Account"));
                 MasterDetailHarness.Select<UserInfo>(Grids("explain-access")[0], u => u.FullName == "Chen Wei");
@@ -426,7 +428,7 @@ namespace SecurityToolkit.Tests
                 // Record access: can Priya (Contoso Americas) reach an account that sits in Contoso EMEA? Only through a share.
                 Open("record-access");
                 Until(() => Grids("record-access")[0].GetVisible<PrincipalRow>().Any());
-                var recordView = views["record-access"];
+                var recordView = View("record-access");
                 var tableBox = FindControls<ComboBox>(recordView).Single(c => c.Name == "RecordTable");
                 tableBox.SelectedIndex = Enumerable.Range(0, tableBox.Items.Count).First(i => tableBox.Items[i].ToString().StartsWith("Account"));
                 FindControls<TextBox>(recordView).Single(c => c.Name == "RecordText").Text = "Contoso";

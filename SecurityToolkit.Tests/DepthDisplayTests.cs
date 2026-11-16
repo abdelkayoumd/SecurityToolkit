@@ -27,7 +27,7 @@ namespace SecurityToolkit.Tests
         {
             Sta.Run(() =>
             {
-                var feature = FeatureRegistry.CreateAll().Single(f => f.Id == featureId);
+                var feature = FeatureRegistry.Find(featureId);
                 var view = feature.CreateView(new TestHost());
                 var grids = new List<FilterableGrid>();
                 Collect(view, grids);

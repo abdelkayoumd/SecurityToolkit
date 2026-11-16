@@ -69,6 +69,15 @@ namespace SecurityToolkit.Features
         FeatureView CreateView(IFeatureHost host);
     }
 
+    /// <summary>
+    /// One menu entry that holds several screens as tabs. Each part keeps its own id, so links to it (the row menu,
+    /// Home, saved settings) still open the right tab.
+    /// </summary>
+    internal interface IWorkspaceFeature : IFeature
+    {
+        IReadOnlyList<IFeature> Parts { get; }
+    }
+
     /// <summary>Base of every feature screen. Created lazily the first time its rail item is opened.</summary>
     internal abstract class FeatureView : UserControl
     {
@@ -101,7 +110,32 @@ namespace SecurityToolkit.Features
         }
 
         /// <summary>The buttons this feature puts on the shell's command bar (built once, on first use).</summary>
-        public IReadOnlyList<Control> Commands => _commands ?? (_commands = CreateCommands().ToList());
+        public virtual IReadOnlyList<Control> Commands => _commands ?? (_commands = CreateCommands().ToList());
+
+        /// <summary>Raised when <see cref="Commands"/> or <see cref="ScreenId"/> changed (a workspace switched tabs).</summary>
+        public event EventHandler CommandsChanged;
+
+        protected void OnCommandsChanged()
+        {
+            CommandsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <summary>The screens whose options this view shows, each with its own feature id. Just itself, except for a workspace.</summary>
+        public virtual IEnumerable<FeatureView> Parts
+        {
+            get { yield return this; }
+        }
+
+        /// <summary>The id of the screen in front: the feature itself, or a workspace's current tab. Remembered between sessions.</summary>
+        public virtual string ScreenId => FeatureId;
+
+        /// <summary>Brings the tab with this feature id to the front. Only a workspace has tabs.</summary>
+        public virtual void ShowPart(string featureId)
+        {
+        }
+
+        /// <summary>The user, team, role or table selected on this screen, so another tab can start from it; null when none.</summary>
+        public virtual Subject CurrentSubject => null;
 
         protected virtual IEnumerable<Control> CreateCommands()
         {
@@ -147,9 +181,7 @@ namespace SecurityToolkit.Features
                 new UsersByRoleFeature(),
                 new BusinessUnitTreeFeature(),
                 new PrivilegeFinderFeature(),
-                new ExplainAccessFeature(),
-                new RecordAccessFeature(),
-                new UserAccessMatrixFeature(),
+                new UserAccessFeature(),
                 new PrivilegedUsersFeature(),
                 new CleanupReportFeature(),
                 new UserRolesFeature(),
@@ -157,6 +189,36 @@ namespace SecurityToolkit.Features
                 new TeamMembershipFeature(),
                 new CloneUserFeature(),
             });
+        }
+
+        /// <summary>Any screen by id: a menu entry, or a tab of a workspace. Null when there is none.</summary>
+        public static IFeature Find(string id)
+        {
+            return Everything().FirstOrDefault(f => string.Equals(f.Id, id, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>The menu entry that shows this screen: the workspace for one of its tabs, the screen itself otherwise.</summary>
+        public static string MenuIdOf(string id)
+        {
+            var workspace = CreateAll().OfType<IWorkspaceFeature>()
+                .FirstOrDefault(w => w.Parts.Any(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase)));
+            return workspace?.Id ?? id;
+        }
+
+        /// <summary>Every menu entry and every tab of a workspace.</summary>
+        public static IEnumerable<IFeature> Everything()
+        {
+            foreach (var feature in CreateAll())
+            {
+                yield return feature;
+                if (feature is IWorkspaceFeature workspace)
+                {
+                    foreach (var part in workspace.Parts)
+                    {
+                        yield return part;
+                    }
+                }
+            }
         }
 
         internal static IReadOnlyList<IFeature> Order(IEnumerable<IFeature> features)

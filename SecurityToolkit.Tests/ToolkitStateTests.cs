@@ -119,7 +119,7 @@ namespace SecurityToolkit.Tests
             Sta.Run(() =>
             {
                 var host = OrgFake.HostFor(new Org());
-                foreach (var feature in FeatureRegistry.CreateAll())
+                foreach (var feature in FeatureRegistry.Everything())
                 {
                     var view = feature.CreateView(host);
                     var exports = view.Commands.OfType<CommandButton>().Where(c => c.Glyph == Theme.GlyphDownload && c.Text.StartsWith("Export")).Select(c => c.Text).ToList();

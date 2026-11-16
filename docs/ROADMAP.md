@@ -16,12 +16,12 @@ Each release is shippable on its own; the order inside a release is the build or
 |---|------|------|-----------|
 | 1 | Privilege finder: tick one, several or all privileges | done | Tried in XrmToolBox on a real org |
 | 2 | New Excel export format (header, filter, colours, About sheet) | done | Sample opened in Excel and the colours approved |
-| 3 | Privilege finder: check the Business Unit column (root role copy only?) | S, last item of 1.5.0 | Result matches the role editor for a role copied to a child business unit |
+| 3 | Privilege finder: check the Business Unit column (root role copy only?) | S, carried over to 2.0.0 | Result matches the role editor for a role copied to a child business unit |
 | 4 | Verify Privileged users on a real org | done | Counts match a manual check of two users |
 | 5 | Verify Record access on a real record, including a team-owned one | done | Answer matches the platform's "Check access" |
-| 6 | New icon reaches NuGet and the Tool Library | S | Released |
+| 6 | New icon reaches NuGet and the Tool Library | done (1.5.0) | Released |
 
-## 1.5.0 Fluency: stop starting from an empty screen
+## 1.5.0 Fluency: stop starting from an empty screen (released 2026-11-16)
 
 | # | Item | Size | Depends on | Done when |
 |---|------|------|------------|-----------|
@@ -36,7 +36,8 @@ A major version because the menu changes.
 
 | # | Item | Size | Depends on | Done when |
 |---|------|------|------------|-----------|
-| 11 | User workspace: A user's access, Explain access and Record access as tabs of one screen (what, why, this record) | L | 7 | The three old menu entries are gone and nothing was lost |
+| 3 | Privilege finder Business Unit column (carried over from 1.4.0) | S | | Result matches the role editor for a role copied to a child business unit |
+| 11 | User workspace: A user's access, Explain access and Record access as tabs of one screen (what, why, this record) | built | 7 | The three old menu entries are gone and nothing was lost |
 | 12 | One Compare screen for two users or two roles | M | | One menu entry |
 | 13 | One Assign screen for roles for users, roles for teams and team membership | M | | One menu entry, same review and undo |
 | 14 | Sentence pattern on Explain access and Compare, using the shared dropdowns | M | 11, 12 | Each screen states its question and result in one sentence |

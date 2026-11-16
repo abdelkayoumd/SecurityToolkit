@@ -73,6 +73,16 @@ namespace SecurityToolkit.Features
             ApplyPendingSubject();
         }
 
+        /// <summary>The first thing picked in the list on the left.</summary>
+        public override Subject CurrentSubject
+        {
+            get
+            {
+                var row = Master.GetSelected<object>().FirstOrDefault();
+                return row == null ? null : Subjects.From(row, Graph ?? Host.Security?.CachedGraph).FirstOrDefault();
+            }
+        }
+
         /// <summary>True when the list on the left can hold this kind of subject.</summary>
         protected virtual bool Accepts(SubjectKind kind)
         {

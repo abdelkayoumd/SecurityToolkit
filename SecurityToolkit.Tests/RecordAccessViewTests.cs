@@ -375,7 +375,7 @@ namespace SecurityToolkit.Tests
         [Fact]
         public void ItIsListedUnderUnderstandAccess_BetweenExplainAccessAndThePrivilegeFinder()
         {
-            var ids = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
+            var ids = FeatureRegistry.Everything().Select(f => f.Id).ToList(); // menu entries, each workspace followed by its tabs
 
             Assert.Equal(FeatureGroup.UnderstandAccess, new RecordAccessFeature().Group);
             Assert.Equal(ids.IndexOf("explain-access") + 1, ids.IndexOf("record-access"));

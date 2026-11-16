@@ -25,13 +25,18 @@ The menu on the left is grouped by what you want to do: **Look up**, **Understan
   one of them grants and where one reaches further. Differences only by default.
 - **Privilege finder** – pick tables, one, several or all privileges (Create, Read, Write, Delete, Append,
   Append To, Assign, Share) and a minimum depth, and see which roles grant them, with one depth column per privilege.
-- **Explain access** – "why can this user delete accounts?" Pick users, a privilege and a table, and see every
-  route to it: which role, whether the user holds it directly or through which team, and how far it reaches,
-  with the strongest route marked.
-- **Record access** – "can this user (or team) open this record?" Pick a user or team and a record (paste its link or id, or search by name) and see, for Read, Write, Delete, Append, Append To, Assign and Share, whether they have it and why: the role that reaches the record, ownership, a share, or what falls short. A second tab lists everyone the record is shared with. The answer comes from the platform itself; the reasons come from the roles, business units and shares.
-- **A user's access** ("what can this user do?") – pick a user and see every table against the eight privileges, each cell showing how
-  far their roles reach (own records, business unit, parent and child units, or the whole organization),
-  drawn with the same icons and wording as the Dynamics 365 security role editor. The reverse of Explain access.
+- **A user's access** – one screen, three tabs, and the selected user follows you from tab to tab:
+  - *What they can do* – every table against the eight privileges, each cell showing how far the user's roles
+    reach (own records, business unit, parent and child units, or the whole organization), drawn with the same
+    icons and wording as the Dynamics 365 security role editor.
+  - *Why they have access* – "why can this user delete accounts?" Pick users, a privilege and a table, and see
+    every route to it: which role, whether the user holds it directly or through which team, and how far it
+    reaches, with the strongest route marked.
+  - *Access to a record* – "can this user (or team) open this record?" Pick a user or team and a record (paste
+    its link or id, or search by name) and see, for Read, Write, Delete, Append, Append To, Assign and Share,
+    whether they have it and why: the role that reaches the record, ownership, a share, or what falls short. A
+    second tab lists everyone the record is shared with. The answer comes from the platform itself; the reasons
+    come from the roles, business units and shares.
 - **Privileged users** – a security review in six checks: which roles can delete across the whole organization
   (measured by what the role can do, so it works in any language), who holds them directly or through a team,
   the built-in System Administrators and Customizers, disabled users and service accounts that still hold them,

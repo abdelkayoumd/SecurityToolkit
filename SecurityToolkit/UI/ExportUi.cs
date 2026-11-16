@@ -71,7 +71,7 @@ namespace SecurityToolkit.UI
         internal static ExportInfo Describe(IWin32Window owner, string sheetName, string description, bool colourDepths)
         {
             var featureId = (owner as FeatureView)?.FeatureId;
-            var title = featureId == null ? null : FeatureRegistry.CreateAll().FirstOrDefault(f => f.Id == featureId)?.Title;
+            var title = featureId == null ? null : FeatureRegistry.Find(featureId)?.Title;
             return new ExportInfo
             {
                 Title = string.IsNullOrEmpty(title) || string.Equals(title, sheetName, StringComparison.CurrentCultureIgnoreCase) ? sheetName : title + ": " + sheetName,

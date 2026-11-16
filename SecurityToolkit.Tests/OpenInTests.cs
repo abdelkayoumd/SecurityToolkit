@@ -82,7 +82,7 @@ namespace SecurityToolkit.Tests
         public void EveryAction_OpensAScreenThatExists()
         {
             var ids = FeatureRegistry.CreateAll().Select(f => f.Id).ToList();
-            Assert.All(SubjectActions.All, a => Assert.Contains(a.FeatureId, ids));
+            Assert.All(SubjectActions.All, a => Assert.NotNull(FeatureRegistry.Find(a.FeatureId)));
         }
 
         [Fact]
@@ -103,7 +103,7 @@ namespace SecurityToolkit.Tests
             {
                 var org = new Org();
                 var host = OrgFake.HostFor(org);
-                var view = FeatureRegistry.CreateAll().Single(f => f.Id == featureId).CreateView(host);
+                var view = FeatureRegistry.Find(featureId).CreateView(host);
                 view.FeatureId = featureId;
                 var form = new Form { Size = new Size(1200, 500) };
                 form.Controls.Add(view);

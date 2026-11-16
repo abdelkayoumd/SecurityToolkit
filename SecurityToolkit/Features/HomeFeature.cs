@@ -142,7 +142,8 @@ namespace SecurityToolkit.Features
                 };
                 var rows = new List<FlowLayoutPanel>();
 
-                var known = FeatureRegistry.CreateAll().ToDictionary(f => f.Id);
+                // Tabs of a workspace keep their own card: the question each answers is still worth asking.
+                var known = FeatureRegistry.Everything().ToDictionary(f => f.Id);
                 foreach (var section in Enum.GetValues(typeof(GuideSection)).Cast<GuideSection>())
                 {
                     var entries = FeatureGuide.All.Where(e => e.Section == section && known.ContainsKey(e.FeatureId)).ToList();
